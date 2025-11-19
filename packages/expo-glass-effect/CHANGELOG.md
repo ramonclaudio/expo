@@ -8,6 +8,8 @@
 
 ### 🐛 Bug fixes
 
+- Add `isGlassEffectAPIAvailable` API to prevent some iOS 26 beta version crashes ([#40992](https://github.com/expo/expo/pull/40992) by [@nishan](https://github.com/intergalacticspacehighway))
+
 ### 💡 Others
 
 ## 0.1.8 — 2025-12-05
