@@ -741,7 +741,7 @@ class AudioModule : Module() {
         }
       }
 
-      Function("release") { playlist: AudioPlaylist ->
+      Function("destroy") { playlist: AudioPlaylist ->
         playlists.remove(playlist.id)
       }
     }

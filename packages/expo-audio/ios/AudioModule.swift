@@ -356,7 +356,7 @@ public class AudioModule: Module {
         playlist.clear()
       }
 
-      Function("release") { playlist in
+      Function("destroy") { playlist in
         self.registry.remove(playlist)
       }
     }
