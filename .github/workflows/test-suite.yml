@@ -253,8 +253,6 @@ jobs:
     steps:
       - name: 👀 Checkout
         uses: actions/checkout@v5
-      - name: 🧹 Cleanup GitHub Linux runner disk space
-        uses: ./.github/actions/cleanup-linux-disk-space
       - name: 🏗️ Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -278,6 +276,10 @@ jobs:
           react-native-gradle-downloads: 'true'
       - name: 🧶 Install workspace node modules
         run: yarn install --frozen-lockfile
+      - name: Debug yarn integrity
+        shell: bash
+        run: |
+          echo ls -la node_modules
       - name: Upload .yarn-integrity
         uses: actions/upload-artifact@v4
         with:
