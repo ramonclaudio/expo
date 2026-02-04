@@ -11,6 +11,7 @@ import java.lang.ref.WeakReference
 @OptIn(UnstableApi::class)
 object VideoManager {
   const val INTENT_PLAYER_KEY = "player_uuid"
+  private var appContext: WeakReference<AppContext?> = WeakReference(null)
 
   // Used for sharing videoViews between VideoView and FullscreenPlayerActivity
   private var videoViews = mutableMapOf<String, VideoView>()
@@ -22,7 +23,7 @@ object VideoManager {
   private lateinit var audioFocusManager: AudioFocusManager
   lateinit var cache: VideoCache
 
-  fun onModuleCreated(appContext: AppContext) {
+  fun onModuleCreated(appContext: AppContext) = synchronized(this) {
     val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
     if (!this::audioFocusManager.isInitialized) {
@@ -30,7 +31,11 @@ object VideoManager {
     }
     if (!this::cache.isInitialized) {
       cache = VideoCache(context)
+    } else if (this.appContext.get()?.reactContext != appContext.reactContext) {
+      cache.release()
+      cache = VideoCache(context)
     }
+    this.appContext = WeakReference(appContext)
   }
 
   fun registerVideoView(videoView: VideoView) {
