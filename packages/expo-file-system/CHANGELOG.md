@@ -9,7 +9,7 @@
 ### 🐛 Bug fixes
 
 - [Android] Fix bundle directory listing returning incorrect names, URIs and trailing slashes for files. ([#42882](https://github.com/expo/expo/pull/42882) by [@aleqsio](https://github.com/aleqsio))
-- [Android] Fix copy/move support for SAF and content provider URIs.
+- [Android] Fix copy/move support for SAF and content provider URIs. ([#42887](https://github.com/expo/expo/pull/42887) by [@barthap](https://github.com/barthap))
 
 ### 💡 Others
 
