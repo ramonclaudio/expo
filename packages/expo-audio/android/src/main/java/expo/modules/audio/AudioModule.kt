@@ -11,7 +11,6 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.media3.common.C.CONTENT_TYPE_DASH
 import androidx.media3.common.C.CONTENT_TYPE_HLS
 import androidx.media3.common.C.CONTENT_TYPE_OTHER
@@ -41,6 +40,7 @@ import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
+import androidx.core.net.toUri
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class AudioModule : Module() {
@@ -214,6 +214,27 @@ class AudioModule : Module() {
       Permissions.getPermissionsWithPermissionsManager(appContext.permissions, promise, Manifest.permission.RECORD_AUDIO)
     }
 
+    Function("preload") { source: AudioSource, _: Double ->
+      val uri = source.uri ?: return@Function
+      val upstreamFactory = httpDataSourceFactory(source.headers)
+      appContext.mainQueue.launch {
+        AudioPreloadCache.preload(context, uri, upstreamFactory)
+      }
+    }
+
+    Function("clearPreloadedSource") { source: AudioSource ->
+      val uri = source.uri ?: return@Function
+      AudioPreloadCache.clearSource(context, uri)
+    }
+
+    Function("clearAllPreloadedSources") {
+      AudioPreloadCache.clearAll(context)
+    }
+
+    Function("getPreloadedSources") {
+      AudioPreloadCache.getPreloadedSources()
+    }
+
     OnActivityEntersBackground {
       if (!shouldPlayInBackground) {
         releaseAudioFocus()
@@ -270,19 +291,23 @@ class AudioModule : Module() {
           it.stopRecording()
         }
 
+        AudioPreloadCache.release()
+
         AudioControlsService.clearSession()
       }
     }
 
     Class(AudioPlayer::class) {
-      Constructor { source: AudioSource?, updateInterval: Double, keepAudioSessionActive: Boolean ->
+      Constructor { source: AudioSource?, updateInterval: Double, keepAudioSessionActive: Boolean, preferredForwardBufferDuration: Double ->
         val mediaSource = createMediaItem(source)
+        val bufferDurationMs = (preferredForwardBufferDuration * 1000).toLong()
         runOnMain {
           val player = AudioPlayer(
             context,
             appContext,
             mediaSource,
-            updateInterval
+            updateInterval,
+            bufferDurationMs
           )
           player.onPlaybackStateChange = { isPlaying ->
             if (!isPlaying && shouldReleaseFocus()) {
@@ -563,7 +588,9 @@ class AudioModule : Module() {
     }
 
     val factory = when (uri.scheme) {
-      "http", "https" -> httpDataSourceFactory(source.headers)
+      "http", "https" -> {
+        AudioPreloadCache.createCacheDataSourceFactory(context, httpDataSourceFactory(source.headers))
+      }
       else -> DefaultDataSource.Factory(context)
     }
     return buildMediaSourceFactory(factory, mediaItem)
