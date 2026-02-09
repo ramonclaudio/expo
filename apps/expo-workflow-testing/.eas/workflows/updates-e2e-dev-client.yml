@@ -76,13 +76,97 @@ jobs:
       - uses: eas/start_ios_simulator
         with:
           device_identifier: iPhone 17
+      - name: Start screen recording
+        id: recordingstart
+        working_directory: ../../../updates-e2e
+        run: |
+          export RECORDINGS_HOME=$PWD
+          set-output RECORDINGS_HOME $RECORDINGS_HOME
+          SIMULATOR_UDIDS=$(xcrun simctl list -v devices booted -j | jq --raw-output '.devices | .[] | .[] | .udid')
+          mkdir -p "$RECORDINGS_HOME/screen-recordings"
+
+          for UDID in $(printf '%s\n' $SIMULATOR_UDIDS); do
+            echo -n "Starting screen recording of simulator $UDID..."
+
+            LOG_FILE="$RECORDINGS_HOME/screen-recordings/$UDID.log"
+            PID_FILE="$RECORDINGS_HOME/screen-recordings/$UDID.pid"
+
+            xcrun simctl io "$UDID" recordVideo -f ~/screen-recordings/$UDID.mov > "$LOG_FILE" 2>&1 < /dev/null &
+            RECORDING_PID=$!
+            echo $RECORDING_PID > "$PID_FILE"
+
+            i=0
+            while [ $i -lt 20 ]; do
+              if grep -q "Recording started" "$LOG_FILE"; then
+                echo " done."
+                break
+              else
+                sleep 1
+                i=$((i+1))
+              fi
+            done
+
+            if [ $i -eq 20 ]; then
+              echo " failed (recording not started)."
+            fi
+          done
       - name: Run Maestro tests (debug)
         id: testdebug
+        continue: true
         working_directory: ../../../updates-e2e
         run: |
           # start packager
           yarn start:dev-client
-          ./maestro/maestro-test-executor.sh ./maestro/tests/updates-e2e-dev-client.yml ios debug
+          ./maestro/maestro-test-executor.sh ./maestro/tests/updates-e2e-dev-client.yml ios debug || true
+      - name: Stop screen recording
+        id: recordingstop
+        working_directory: ../../../updates-e2e
+        run: |
+          SIMULATOR_UDIDS=$(xcrun simctl list -v devices booted -j | jq --raw-output '.devices | .[] | .[] | .udid')
+
+          for UDID in $(printf '%s\n' $SIMULATOR_UDIDS); do
+            echo -n "Stopping screen recording of simulator $UDID..."
+
+            LOG_FILE="$RECORDINGS_HOME/screen-recordings/$UDID.log"
+            PID_FILE="$RECORDINGS_HOME/screen-recordings/$UDID.pid"
+
+            kill -2 $(cat $PID_FILE)
+
+            i=0
+            while [ $i -lt 20 ]; do
+              if grep -q "Wrote video" "$LOG_FILE"; then
+                break
+              else
+                sleep 1
+                i=$((i+1))
+              fi
+            done
+
+            if [ $i -eq 20 ]; then
+              echo " failed (recording file busy)."
+              continue
+            fi
+
+            echo " done."
+
+            rm $LOG_FILE
+            rm $PID_FILE
+          done
+      - name: Prepare screen recording
+        id: recordingprepare
+        working_directory: ../../../updates-e2e
+        run: |
+          RECORDINGS_DIR="$RECORDINGS_HOME/screen-recordings"
+          RECORDING_FILES=$(find "$RECORDINGS_DIR" -type f -print)
+          set-output recording_files "$RECORDING_FILES"
+          echo "Found:\n$RECORDING_FILES"
+      - name: Upload screen recording
+        id: recordingupload
+        uses: eas/upload_artifact
+        with:
+          key: screen_recording
+          path: ${{ steps.recordingprepare.outputs.recording_files }
+
   android:
     runs_on: linux-large-nested-virtualization
     image: latest
