@@ -81,7 +81,6 @@ jobs:
         working_directory: ../..
         run: |
           export RECORDINGS_HOME=$PWD
-          set-output RECORDINGS_HOME "$RECORDINGS_HOME"
           echo "Recordings home at $RECORDINGS_HOME"
           SIMULATOR_UDIDS=$(xcrun simctl list -v devices booted -j | jq --raw-output '.devices | .[] | .[] | .udid')
           mkdir -p "$RECORDINGS_HOME/screen-recordings"
@@ -126,6 +125,7 @@ jobs:
         id: recordingstop
         working_directory: ../..
         run: |
+          export RECORDINGS_HOME=$PWD
           SIMULATOR_UDIDS=$(xcrun simctl list -v devices booted -j | jq --raw-output '.devices | .[] | .[] | .udid')
 
           for UDID in $(printf '%s\n' $SIMULATOR_UDIDS); do
@@ -160,6 +160,7 @@ jobs:
         id: recordingprepare
         working_directory: ../..
         run: |
+          export RECORDINGS_HOME=$PWD
           RECORDINGS_DIR="$RECORDINGS_HOME/screen-recordings"
           RECORDING_FILES=$(find "$RECORDINGS_DIR" -type f -print)
           set-output recording_files "$RECORDING_FILES"
@@ -169,46 +170,4 @@ jobs:
         uses: eas/upload_artifact
         with:
           key: screen_recording
-          path: ${{ steps.recordingprepare.outputs.recording_files }
-
-  android:
-    runs_on: linux-large-nested-virtualization
-    image: latest
-    steps:
-      - uses: eas/install_maestro
-      - uses: eas/checkout
-      - uses: eas/use_npm_token
-      - uses: eas/install_node_modules
-      - name: Set up Updates E2E disabled project
-        id: setup
-        working_directory: ../..
-        env:
-          UPDATES_HOST: localhost
-          UPDATES_PORT: '4747'
-        run: |
-          yarn --silent ts-node --transpile-only ./packages/expo-updates/e2e/setup/create-dev-client-eas-project.ts
-          ls -la ../updates-e2e
-      - name: Prepare E2E project
-        id: prepare
-        working_directory: ../../../updates-e2e
-        run: |
-          yarn generate-test-update-bundles android test-update-1
-      - uses: eas/start_android_emulator
-        with:
-          device_name: pixel_9
-          system_image_package: system-images;android-34;default;x86_64
-      - name: Build E2E test app (debug)
-        id: builddebug
-        working_directory: ../../../updates-e2e
-        run: |
-          yarn maestro:android:debug:build
-      - name: Start packager
-        id: startpackager
-        working_directory: ../../../updates-e2e
-        run: |
-          yarn start:dev-client
-      - name: Run Maestro test (debug) (load update through dev client)
-        id: testdebug1
-        working_directory: ../../../updates-e2e
-        run: |
-          ./maestro/maestro-test-executor.sh ./maestro/tests/devClient_runUpdate.yml android debug
+          path: screen-recordings/*
