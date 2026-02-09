@@ -16,6 +16,8 @@
 
 ### 💡 Others
 
+- [Android] Rework native audio service handling.
+
 ## 55.0.5 — 2026-02-08
 
 _This version does not introduce any user-facing changes._
