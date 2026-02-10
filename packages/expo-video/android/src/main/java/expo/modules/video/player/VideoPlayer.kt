@@ -39,6 +39,9 @@ import expo.modules.video.records.TimeUpdate
 import expo.modules.video.records.VideoSource
 import expo.modules.video.utils.MutableWeakReference
 import expo.modules.video.records.VideoTrack
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.FileInputStream
 import java.lang.ref.WeakReference
@@ -299,12 +302,15 @@ class VideoPlayer(val context: Context, appContext: AppContext, source: VideoSou
     }
   }
 
+  @kotlin.OptIn(DelicateCoroutinesApi::class)
   override fun close() {
     appContext?.reactContext?.unbindService(serviceConnection)
     serviceConnection.playbackServiceBinder?.service?.unregisterPlayer(player)
     VideoManager.unregisterVideoPlayer(this@VideoPlayer)
 
-    appContext?.mainQueue?.launch {
+    // Run on global scope (not appContext.mainQueue) so that reloading doesn't cancel the release process
+    // https://github.com/expo/expo/blob/cdf592a7fea56fc01b0149e9b2e5dbd294bcdc4c/packages/expo-modules-core/android/src/main/java/expo/modules/kotlin/AppContext.kt#L277-L279
+    GlobalScope.launch(Dispatchers.Main) {
       player.removeListener(playerListener)
       player.release()
     }
@@ -312,8 +318,8 @@ class VideoPlayer(val context: Context, appContext: AppContext, source: VideoSou
     commitedSource = null
   }
 
-  override fun deallocate() {
-    super.deallocate()
+  override fun sharedObjectDidRelease() {
+    super.sharedObjectDidRelease()
     close()
   }
 
