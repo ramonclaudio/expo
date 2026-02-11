@@ -853,14 +853,14 @@ const copySwiftModuleInterfacesAsync = async (
   slicePath: string,
   submoduleNames: string[] = []
 ): Promise<void> => {
-  let spinner = createAsyncSpinner(`Copying Swift module interfaces for (${slice})`, pkg, product);
-
   // Find Swift targets in the product
   const swiftTarget = product.targets.find((target) => target?.type === 'swift');
 
   if (!swiftTarget) {
     return;
   }
+
+  let spinner = createAsyncSpinner(`Copying Swift module interfaces for (${slice})`, pkg, product);
 
   // Map slice name to build folder prefix
   const buildFolderPrefix = getBuildFolderPrefixForSlice(slice);
