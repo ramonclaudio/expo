@@ -118,7 +118,10 @@ export const SPMGenerator = {
       );
 
       const targetDestination = SPMGenerator.getTargetPath(pkg, product, target);
-      const targetSourcePath = path.resolve(pkg.path, target.path);
+      // .build/ paths are build artifacts (e.g., codegen output) stored under pkg.buildPath,
+      // not under pkg.path (node_modules source). All other paths are relative to pkg.path.
+      const targetRoot = target.path.startsWith('.build/') ? pkg.buildPath : pkg.path;
+      const targetSourcePath = path.resolve(targetRoot, target.path);
 
       const targetExcludes = target.exclude || [];
       const pattern =

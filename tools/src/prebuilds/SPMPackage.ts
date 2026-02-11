@@ -40,6 +40,58 @@ function escapeSwiftString(str: string): string {
 }
 
 /**
+ * Cache for the resolved React Native minor version.
+ * Lazily resolved from node_modules/react-native/package.json.
+ */
+let _reactNativeMinorVersion: number | null = null;
+
+/**
+ * Gets the React Native minor version from node_modules.
+ * Uses pkg.path to locate the workspace root's node_modules.
+ */
+function getReactNativeMinorVersion(pkgPath: string): number {
+  if (_reactNativeMinorVersion !== null) {
+    return _reactNativeMinorVersion;
+  }
+  // pkgPath is e.g. /workspace/node_modules/react-native-gesture-handler
+  // Navigate to sibling react-native package
+  const rnPackageJsonPath = path.resolve(pkgPath, '..', 'react-native', 'package.json');
+  try {
+    const rnPackageJson = fs.readJsonSync(rnPackageJsonPath);
+    const version: string = rnPackageJson.version;
+    const minor = parseInt(version.split('.')[1], 10);
+    if (isNaN(minor)) {
+      throw new Error(`Could not parse minor version from react-native version: ${version}`);
+    }
+    _reactNativeMinorVersion = minor;
+    return minor;
+  } catch (e: any) {
+    throw new Error(
+      `Failed to resolve REACT_NATIVE_MINOR_VERSION from ${rnPackageJsonPath}: ${e.message}`
+    );
+  }
+}
+
+/**
+ * Substitutes known variables in compiler flag strings.
+ * Supported variables:
+ * - ${REACT_NATIVE_MINOR_VERSION}: Replaced with the minor version of react-native (e.g., 83)
+ */
+function substituteCompilerFlagVariables(flags: string[], pkgPath: string): string[] {
+  const hasVariable = flags.some((f) => f.includes('${'));
+  if (!hasVariable) {
+    return flags;
+  }
+  return flags.map((flag) => {
+    if (flag.includes('${REACT_NATIVE_MINOR_VERSION}')) {
+      const minor = getReactNativeMinorVersion(pkgPath);
+      return flag.replace(/\$\{REACT_NATIVE_MINOR_VERSION\}/g, String(minor));
+    }
+    return flag;
+  });
+}
+
+/**
  * Formats a target dependency for Package.swift.
  * Strings become quoted ("Hermes"), while product references become .product(name:, package:)
  */
@@ -460,8 +512,8 @@ function generateTargetDeclaration(target: ResolvedTarget, comma: string): strin
       lines.push(`            ],`);
     }
 
-    // CXX settings for C++ targets
-    if (target.type === 'cpp' && target.cxxSettings && target.cxxSettings.length > 0) {
+    // CXX settings for C++ and ObjC targets (ObjC targets with .mm files need these too)
+    if ((target.type === 'cpp' || target.type === 'objc') && target.cxxSettings && target.cxxSettings.length > 0) {
       lines.push(`            cxxSettings: [`);
       for (const setting of target.cxxSettings) {
         lines.push(`                ${setting},`);
@@ -559,12 +611,13 @@ async function resolveSourceTarget(
       productName,
       pkg.packageVersion,
       pkg.path,
+      pkg.buildPath,
       buildType
     );
     resolved.cSettings = cSettings;
-    if (target.type === 'cpp') {
-      resolved.cxxSettings = cxxSettings;
-    }
+    // ObjC targets with .mm files need cxxSettings too — SPM compiles .m files
+    // as ObjC++ when mixed with .mm, so cxxSettings must carry the same flags.
+    resolved.cxxSettings = cxxSettings;
     // Set publicHeadersPath for ObjC/C++ targets (critical for module map generation)
     // SPM only supports a single publicHeadersPath, so we use 'include' as per old generator
     // If publicHeaders is explicitly set to false, skip this to prevent module creation
@@ -667,6 +720,7 @@ function buildCSettings(
   productName: string,
   packageVersion: string,
   pkgPath: string,
+  buildPath: string,
   buildType: BuildFlavor
 ): {
   cSettings: string[];
@@ -744,10 +798,20 @@ function buildCSettings(
   if (target.includeDirectories && target.includeDirectories.length > 0) {
     const includeFlags: string[] = [];
     for (const includeDir of target.includeDirectories) {
-      // Resolve relative to the original target path in the package source
-      // target.path is the path from config (e.g., ".build/codegen/build/generated/ios/ReactCodegen/react/renderer/components/rnsvg")
-      // includeDir is relative to that path (e.g., "../../../.." to get to ReactCodegen)
-      const includePath = path.resolve(pkgPath, target.path, includeDir);
+      // Resolve relative to the original target path.
+      // .build/ paths are build artifacts (e.g., codegen output) stored under buildPath,
+      // not under pkgPath (node_modules source). All other paths are relative to pkgPath.
+      const targetRoot = target.path.startsWith('.build/') ? buildPath : pkgPath;
+      let includePath = path.resolve(targetRoot, target.path, includeDir);
+
+      // If the resolved path lands inside pkgPath/.build/, remap it to buildPath/.build/
+      // This handles cases like target.path="common/cpp" with includeDir="../../.build/codegen/..."
+      // where the relative traversal leads into .build/ which now lives under buildPath.
+      const pkgBuildPrefix = path.join(pkgPath, '.build') + path.sep;
+      if (includePath.startsWith(pkgBuildPrefix) || includePath === path.join(pkgPath, '.build')) {
+        includePath = path.join(buildPath, includePath.slice(pkgPath.length));
+      }
+
       includeFlags.push('-I', includePath);
     }
     const flagString = `[${includeFlags.map((f) => `"${f}"`).join(', ')}]`;
@@ -762,12 +826,15 @@ function buildCSettings(
   // - Each variant can be array or { c: [...], cxx: [...] }
   if (target.compilerFlags) {
     const resolvedFlags = resolveCompilerFlags(target.compilerFlags, buildType);
-    if (resolvedFlags.c.length > 0) {
-      const flagString = `[${resolvedFlags.c.map((f) => `"${escapeSwiftString(f)}"`).join(', ')}]`;
+    // Substitute variables like ${REACT_NATIVE_MINOR_VERSION} in compiler flags
+    const cFlags = substituteCompilerFlagVariables(resolvedFlags.c, pkgPath);
+    const cxxFlags = substituteCompilerFlagVariables(resolvedFlags.cxx, pkgPath);
+    if (cFlags.length > 0) {
+      const flagString = `[${cFlags.map((f) => `"${escapeSwiftString(f)}"`).join(', ')}]`;
       cSettings.push(`.unsafeFlags(${flagString})`);
     }
-    if (resolvedFlags.cxx.length > 0) {
-      const flagString = `[${resolvedFlags.cxx.map((f) => `"${escapeSwiftString(f)}"`).join(', ')}]`;
+    if (cxxFlags.length > 0) {
+      const flagString = `[${cxxFlags.map((f) => `"${escapeSwiftString(f)}"`).join(', ')}]`;
       cxxSettings.push(`.unsafeFlags(${flagString})`);
     }
   }
