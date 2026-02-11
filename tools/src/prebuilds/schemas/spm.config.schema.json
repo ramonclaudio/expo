@@ -155,6 +155,14 @@
                     },
                     "default": [ ]
                 },
+                "excludeFromUmbrella": {
+                    "type": "array",
+                    "description": "Glob patterns for headers that should be excluded from the umbrella header. These headers won't be automatically imported when the module is imported. Use this for headers that reference files that don't exist in the xcframework (like Swift bridging headers for non-Swift modules).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [ ]
+                },
                 "targets": {
                     "type": "array",
                     "description": "List of targets included in this product",

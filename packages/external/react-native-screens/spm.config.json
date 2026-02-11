@@ -13,6 +13,7 @@
                 "React",
                 "Hermes"
             ],
+            "excludeFromUmbrella": [ "Swift-Bridging.h", "RNScreens-Bridging-Header.h" ],
             "targets": [
                 {
                     "type": "cpp",

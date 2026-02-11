@@ -513,7 +513,11 @@ function generateTargetDeclaration(target: ResolvedTarget, comma: string): strin
     }
 
     // CXX settings for C++ and ObjC targets (ObjC targets with .mm files need these too)
-    if ((target.type === 'cpp' || target.type === 'objc') && target.cxxSettings && target.cxxSettings.length > 0) {
+    if (
+      (target.type === 'cpp' || target.type === 'objc') &&
+      target.cxxSettings &&
+      target.cxxSettings.length > 0
+    ) {
       lines.push(`            cxxSettings: [`);
       for (const setting of target.cxxSettings) {
         lines.push(`                ${setting},`);
