@@ -150,11 +150,11 @@ export const SPMGenerator = {
             );
 
             await fs.ensureDir(path.dirname(symlinkPath));
-            if (!fs.existsSync(symlinkPath)) {
-              // Create relative symlink
-              const relativePath = path.relative(path.dirname(symlinkPath), targetPath);
-              await fs.symlink(relativePath, symlinkPath);
-            }
+            // Remove any existing symlink (could be stale/broken from a previous run)
+            await fs.remove(symlinkPath).catch(() => {});
+            // Create relative symlink
+            const relativePath = path.relative(path.dirname(symlinkPath), targetPath);
+            await fs.symlink(relativePath, symlinkPath);
             continue;
           }
 
@@ -195,10 +195,9 @@ export const SPMGenerator = {
                 await fs.copy(sourceFilePath, destinationFilePath, { overwrite: true });
               }
             } else {
-              // Symlink source files
-              if (!fs.existsSync(destinationFilePath)) {
-                await fs.symlink(sourceFilePath, destinationFilePath);
-              }
+              // Symlink source files - remove any stale symlink first
+              await fs.remove(destinationFilePath).catch(() => {});
+              await fs.symlink(sourceFilePath, destinationFilePath);
             }
           }
         }
@@ -220,10 +219,10 @@ export const SPMGenerator = {
         const sourceFilePath = path.join(targetSourcePath, file);
         const destinationFilePath = path.join(targetDestination, file);
 
-        if (!fs.existsSync(destinationFilePath)) {
-          await fs.ensureDir(path.dirname(destinationFilePath));
-          await fs.symlink(sourceFilePath, destinationFilePath);
-        }
+        await fs.ensureDir(path.dirname(destinationFilePath));
+        // Remove any stale/broken symlink from a previous run before creating
+        await fs.remove(destinationFilePath).catch(() => {});
+        await fs.symlink(sourceFilePath, destinationFilePath);
       }
 
       // Header files - only copy if headerPattern is explicitly defined in the config
