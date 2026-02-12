@@ -2,12 +2,11 @@
 
 ## Unpublished
 
-- Add ref prop type to `GlassContainer` and `GlassView` components ([#41799](https://github.com/expo/expo/pull/41799) by [@pchalupa](https://github.com/pchalupa))
-
 ### 🛠 Breaking changes
 
 ### 🎉 New features
 
+- Add ref prop type to `GlassContainer` and `GlassView` components ([#41799](https://github.com/expo/expo/pull/41799) by [@pchalupa](https://github.com/pchalupa))
 - Add animation config to `glassEffectStyle` ([#42005](https://github.com/expo/expo/pull/42005) by [@nishan](https://github.com/intergalacticspacehighway))
 
 ### 🐛 Bug fixes
