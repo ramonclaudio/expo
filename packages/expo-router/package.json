@@ -42,6 +42,8 @@
     "unstable-native-tabs.d.ts",
     "unstable-split-view.js",
     "unstable-split-view.d.ts",
+    "unstable-floating-toolbar.js",
+    "unstable-floating-toolbar.d.ts",
     "node",
     "plugin",
     "rsc",

@@ -90,6 +90,12 @@ export type {
   StackToolbarViewProps,
 } from './layouts/stack-utils';
 
+export type {
+  FloatingToolbarProps,
+  FloatingToolbarButtonProps,
+  FloatingToolbarSpacerProps,
+} from './floating-toolbar';
+
 export { unstable_navigationEvents } from './navigationEvents';
 
 export { Stack } from './layouts/Stack';

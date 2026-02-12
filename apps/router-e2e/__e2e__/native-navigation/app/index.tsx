@@ -27,6 +27,7 @@ const HomeIndex = () => {
       <CaseLink href="/header-items" text="Header Items" />
       <CaseLink href="/modals" text="Modals" />
       <CaseLink href="/params" text="Params" />
+      <CaseLink href="/floating-toolbar" text="Floating Toolbar" />
     </ScrollView>
   );
 };

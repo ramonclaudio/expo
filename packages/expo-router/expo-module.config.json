@@ -5,6 +5,6 @@
     "appDelegateSubscribers": ["ExpoHeadAppDelegateSubscriber"]
   },
   "android": {
-    "modules": ["expo.modules.router.ExpoRouterModule"]
+    "modules": ["expo.modules.router.ExpoRouterModule", "expo.modules.router.FloatingToolbarModule"]
   }
 }
