@@ -3,27 +3,26 @@ import MapKit
 import ExpoModulesCore
 
 extension MKMapPoint {
-  // Perpendicular distance (in metres) from `self` to the
-  // line segment **AB**.
-  func distance(toSegmentFrom a: MKMapPoint, to b: MKMapPoint) -> CLLocationDistance {
+  // Squared distance (in MKMapPoint units²) from `self` to the
+  // line segment **AB**. Avoids the sqrt that `distance(to:)` performs,
+  // suitable when the caller only needs to compare against a threshold.
+  func squaredDistance(toSegmentFrom a: MKMapPoint, to b: MKMapPoint) -> Double {
     let dx = b.x - a.x
     let dy = b.y - a.y
 
     // Degenerate segment => use point distance
     guard dx != 0 || dy != 0 else {
-      return distance(to: a)
+      let px = x - a.x
+      let py = y - a.y
+      return px * px + py * py
     }
 
     let t = ((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy)
-    // Clamp the projection to the segment
     let clamped = max(0.0, min(1.0, t))
 
-    let proj = MKMapPoint(
-      x: a.x + clamped * dx,
-      y: a.y + clamped * dy
-    )
-
-    return distance(to: proj)
+    let px = x - (a.x + clamped * dx)
+    let py = y - (a.y + clamped * dy)
+    return px * px + py * py
   }
 }
 
@@ -278,17 +277,21 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
 
   private func polyline(at tap: CLLocationCoordinate2D) -> ExpoAppleMapPolyline? {
     let tapPoint = MKMapPoint(tap)
-    let threshold = props.properties.polylineTapThreshold
+    // Convert the metre threshold to MKMapPoint units once, then square it
+    // so every per-segment check avoids a sqrt.
+    let mppAtTap = MKMapPointsPerMeterAtLatitude(tap.latitude)
+    let thresholdSq = pow(props.properties.polylineTapThreshold * mppAtTap, 2)
 
     return props.polylines.first { line in
-      let pts = line.hitTestCoordinates.map(MKMapPoint.init)
+      let coords = line.hitTestCoordinates
+      guard var prev = coords.first.map(MKMapPoint.init) else { return false }
 
-      var minDist = CLLocationDistance.greatestFiniteMagnitude
-      for (a, b) in zip(pts, pts.dropFirst()) {
-        minDist = min(minDist, tapPoint.distance(toSegmentFrom: a, to: b))
-        if minDist < threshold {
+      for coord in coords.dropFirst() {
+        let curr = MKMapPoint(coord)
+        if tapPoint.squaredDistance(toSegmentFrom: prev, to: curr) < thresholdSq {
           return true
         }
+        prev = curr
       }
       return false
     }
@@ -320,16 +323,8 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
   func isTapInsideCircle(
     tapCoordinate: CLLocationCoordinate2D, circleCenter: CLLocationCoordinate2D, radius: Double
   ) -> Bool {
-    // Convert coordinates to CLLocation for distance calculation
-    let tapLocation = CLLocation(
-      latitude: tapCoordinate.latitude, longitude: tapCoordinate.longitude)
-    let circleCenterLocation = CLLocation(
-      latitude: circleCenter.latitude, longitude: circleCenter.longitude)
-
-    // Calculate distance between tap and circle center (in meters)
-    let distance = tapLocation.distance(from: circleCenterLocation)
-
-    // Return true if distance is less than or equal to the radius
-    return distance <= radius
+    let tapPoint = MKMapPoint(tapCoordinate)
+    let centerPoint = MKMapPoint(circleCenter)
+    return tapPoint.distance(to: centerPoint) <= radius
   }
 }
