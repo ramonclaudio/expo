@@ -7,7 +7,11 @@ import logger from '../Logger';
 import { Package } from '../Packages';
 import type { SPMPackageSource } from './ExternalPackage';
 import { BuildFlavor } from './Prebuilder.types';
-import { getBuildPlatformsFromProductPlatform, SPMBuild } from './SPMBuild';
+import {
+  getBuildFolderPrefixForPlatform,
+  getBuildPlatformsFromProductPlatform,
+  SPMBuild,
+} from './SPMBuild';
 import { BuiltFramework } from './SPMBuild.types';
 import { BuildPlatform, SPMConfig, SPMProduct } from './SPMConfig.types';
 import { SPMGenerator } from './SPMGenerator';
@@ -124,6 +128,11 @@ export const Frameworks = {
       slices,
       xcframeworkOutputPath
     );
+
+    // Copy SPM dependency xcframeworks (e.g., Lottie.xcframework for lottie-react-native)
+    // These are pre-built binary frameworks that the product dynamically links against
+    // and must be embedded in the app bundle at runtime.
+    await copySPMDependencyXCFrameworksAsync(pkg, product, buildType);
 
     // Sign the XCFramework if a signing identity is provided
     if (signing?.identity) {
@@ -365,6 +374,131 @@ const copyResourceBundlesIntoXCFrameworkAsync = async (
   }
 
   spinner.succeed(`Copied resource bundles for ${product.name}`);
+};
+
+/**
+ * Copies pre-built xcframeworks from SPM package dependencies into the output directory.
+ *
+ * When a product has `spmPackages` dependencies (e.g., lottie-react-native depends on Lottie
+ * from lottie-spm), the SPM build fetches these as binary xcframeworks into
+ * `SourcePackages/artifacts/<package>/<product>/`. These are dynamic frameworks that the
+ * product links against at runtime via @rpath, so they must be distributed alongside
+ * the product xcframework and embedded in the app bundle.
+ *
+ * @param pkg Package information
+ * @param product SPM product
+ * @param buildType Build flavor (Debug or Release)
+ */
+const copySPMDependencyXCFrameworksAsync = async (
+  pkg: SPMPackageSource,
+  product: SPMProduct,
+  buildType: BuildFlavor
+): Promise<void> => {
+  // Check if this product has SPM package dependencies
+  const spmPackages = product.spmPackages;
+  if (!spmPackages || spmPackages.length === 0) {
+    return;
+  }
+
+  const outputDir = Frameworks.getFrameworksOutputPath(pkg.path, buildType);
+  const buildPath = SPMBuild.getPackageBuildPath(pkg, product);
+
+  for (const spmPkg of spmPackages) {
+    // Derive the SPM package name from the URL (last path component without .git)
+    const packageName = spmPkg.packageName || path.basename(spmPkg.url, '.git');
+    const productName = spmPkg.productName;
+
+    // Look for the pre-built xcframework in SourcePackages/artifacts/<packageName>/<productName>/
+    const artifactsDir = path.join(
+      buildPath,
+      'SourcePackages',
+      'artifacts',
+      packageName,
+      productName
+    );
+
+    const xcframeworkName = `${productName}.xcframework`;
+    const sourceXCFrameworkPath = path.join(artifactsDir, xcframeworkName);
+
+    if (!(await fs.pathExists(sourceXCFrameworkPath))) {
+      logger.warn(
+        `⚠️  SPM dependency xcframework not found at ${path.relative(pkg.path, sourceXCFrameworkPath)}`
+      );
+      continue;
+    }
+
+    const destXCFrameworkPath = path.join(outputDir, xcframeworkName);
+
+    // Use xcodebuild -create-xcframework to re-compose with only the slices matching
+    // the product's platforms. The source xcframework may contain macOS/tvOS/visionOS
+    // slices with Versions/Current/ symlink structures that cause fs.copy to fail.
+    // By extracting only the iOS frameworks from the build output, we avoid both the
+    // symlink issues and shipping unnecessary platform slices.
+    const productBuildPlatforms = product.platforms.flatMap(getBuildPlatformsFromProductPlatform);
+
+    // Collect the matching frameworks from the SPM build output
+    const depFrameworks: { frameworkPath: string; debugSymbolsPath?: string }[] = [];
+    for (const buildPlatform of productBuildPlatforms) {
+      const buildFolderPrefix = getBuildFolderPrefixForPlatform(buildPlatform);
+      const buildProductsDir = path.join(
+        buildPath,
+        'Build',
+        'Products',
+        `${buildType}-${buildFolderPrefix}`
+      );
+      const frameworkPath = path.join(buildProductsDir, `${productName}.framework`);
+      const dsymPath = path.join(buildProductsDir, `${productName}.framework.dSYM`);
+
+      if (await fs.pathExists(frameworkPath)) {
+        depFrameworks.push({
+          frameworkPath,
+          debugSymbolsPath: (await fs.pathExists(dsymPath)) ? dsymPath : undefined,
+        });
+      }
+    }
+
+    if (depFrameworks.length === 0) {
+      // Fallback: the dependency may be a binary target (not built locally).
+      // In that case, the framework only exists inside the xcframework slices in
+      // SourcePackages/artifacts. Use rsync to copy while preserving symlinks.
+      logger.info(
+        `📦 Copying SPM dependency ${chalk.cyan(xcframeworkName)} → ${path.relative(pkg.path, destXCFrameworkPath)}`
+      );
+      await fs.remove(destXCFrameworkPath);
+      execSync(`rsync -a --delete "${sourceXCFrameworkPath}/" "${destXCFrameworkPath}/"`, {
+        stdio: 'pipe',
+      });
+      logger.info(`✅ Copied ${xcframeworkName} alongside ${product.name}.xcframework`);
+      continue;
+    }
+
+    // Compose the dependency xcframework with only the relevant slices
+    logger.info(
+      `📦 Composing SPM dependency ${chalk.cyan(xcframeworkName)} → ${path.relative(pkg.path, destXCFrameworkPath)}`
+    );
+    await fs.remove(destXCFrameworkPath);
+
+    const args = [
+      `-create-xcframework`,
+      ...depFrameworks.flatMap((f) => ['-framework', f.frameworkPath]),
+      `-output`,
+      destXCFrameworkPath,
+    ];
+
+    const { code, error: buildError } = await spawnXcodeBuildWithSpinner(
+      args,
+      pkg.path,
+      `Composing ${xcframeworkName}`
+    );
+
+    if (code !== 0) {
+      throw new Error(
+        `Failed to compose dependency ${xcframeworkName}: xcodebuild failed with code ${code}:\n${buildError}`
+      );
+    }
+
+    logger.info(`✅ Composed ${xcframeworkName} alongside ${product.name}.xcframework`);
+  }
 };
 
 /**

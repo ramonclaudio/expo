@@ -7,12 +7,13 @@
  * before each compile to ensure the correct XCFramework variant is linked.
  *
  * Usage:
- *   node replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH>
+ *   node replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH> [-d <DEPS>]
  *
  * Arguments:
  *   -c, --config       Build configuration: "Debug" or "Release"
  *   -m, --module       Module/product name (e.g., "ExpoModulesCore")
  *   -x, --xcframeworks Path to the .xcframeworks directory
+ *   -d, --dependencies Comma-separated dependency xcframework names (e.g., "Lottie")
  *
  * The script:
  *   1. Checks if the current/ symlink exists; creates it if not
@@ -33,6 +34,7 @@ function parseArgs() {
     config: null,
     module: null,
     xcframeworksPath: null,
+    dependencies: [],
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -49,6 +51,10 @@ function parseArgs() {
       case '--xcframeworks':
         result.xcframeworksPath = args[++i];
         break;
+      case '-d':
+      case '--dependencies':
+        result.dependencies = (args[++i] || '').split(',').filter(Boolean);
+        break;
     }
   }
 
@@ -61,11 +67,12 @@ function main() {
   // Validate arguments
   if (!args.config || !args.module || !args.xcframeworksPath) {
     console.error(
-      'Usage: replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH>'
+      'Usage: replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH> [-d <DEPS>]'
     );
     console.error('  -c, --config       Build configuration: "Debug" or "Release"');
     console.error('  -m, --module       Module/product name');
     console.error('  -x, --xcframeworks Path to the .xcframeworks directory');
+    console.error('  -d, --dependencies Comma-separated dependency framework names');
     process.exit(1);
   }
 
@@ -173,11 +180,12 @@ function mainSafe() {
   // Validate arguments
   if (!args.config || !args.module || !args.xcframeworksPath) {
     console.error(
-      'Usage: replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH>'
+      'Usage: replace-expo-xcframework.js -c <CONFIG> -m <MODULE_NAME> -x <XCFRAMEWORKS_PATH> [-d <DEPS>]'
     );
     console.error('  -c, --config       Build configuration: "Debug" or "Release"');
     console.error('  -m, --module       Module/product name');
     console.error('  -x, --xcframeworks Path to the .xcframeworks directory');
+    console.error('  -d, --dependencies Comma-separated dependency framework names');
     process.exit(1);
   }
 
@@ -267,6 +275,45 @@ function mainSafe() {
       );
     } else {
       console.log(`[Expo XCFramework] ${moduleName}: Created symlink pointing to ${configLower}.`);
+    }
+  }
+
+  // Also switch symlinks for SPM dependency xcframeworks declared in spm.config.json
+  const dependencyNames = args.dependencies || [];
+  for (const depName of dependencyNames) {
+    const depXcframeworkName = `${depName}.xcframework`;
+    const depTargetPath = path.join(xcframeworksDir, configLower, depXcframeworkName);
+    if (!fs.existsSync(depTargetPath)) {
+      continue;
+    }
+
+    const depCurrentSymlink = path.join(currentDir, depXcframeworkName);
+    const depExpectedTarget = path.join('..', configLower, depXcframeworkName);
+
+    let depNeedsUpdate = true;
+    if (safeSymlinkCheck(depCurrentSymlink)) {
+      try {
+        const depExistingTarget = fs.readlinkSync(depCurrentSymlink);
+        if (depExistingTarget === depExpectedTarget) {
+          depNeedsUpdate = false;
+        }
+      } catch (e) {
+        // Broken symlink, needs update
+      }
+    }
+
+    if (depNeedsUpdate) {
+      if (safeSymlinkCheck(depCurrentSymlink)) {
+        try {
+          fs.unlinkSync(depCurrentSymlink);
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      fs.symlinkSync(depExpectedTarget, depCurrentSymlink);
+      console.log(
+        `[Expo XCFramework] ${moduleName}: Switched dependency ${depXcframeworkName} to ${configLower}.`
+      );
     }
   }
 }
