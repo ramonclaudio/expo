@@ -49,14 +49,14 @@
                     "compilerFlags": {
                         "common": {
                             "c": [
-                                "-DREACT_NATIVE_MINOR_VERSION=84",
-                                "-DREANIMATED_VERSION=4.2.1",
+                                "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                                "-DREANIMATED_VERSION=${PACKAGE_VERSION}",
                                 "-DREANIMATED_FEATURE_FLAGS=\"[RUNTIME_TEST_FLAG:false][DISABLE_COMMIT_PAUSING_MECHANISM:false][ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][EXPERIMENTAL_CSS_ANIMATIONS_FOR_SVG_COMPONENTS:false][USE_SYNCHRONIZABLE_FOR_MUTABLES:false][USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS:false][ENABLE_SHARED_ELEMENT_TRANSITIONS:false][FORCE_REACT_RENDER_FOR_SETTLED_ANIMATIONS:false]\""
                             ],
                             "cxx": [
                                 "-fno-cxx-modules",
-                                "-DREACT_NATIVE_MINOR_VERSION=84",
-                                "-DREANIMATED_VERSION=4.2.1",
+                                "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                                "-DREANIMATED_VERSION=${PACKAGE_VERSION}",
                                 "-DREANIMATED_FEATURE_FLAGS=\"[RUNTIME_TEST_FLAG:false][DISABLE_COMMIT_PAUSING_MECHANISM:false][ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][EXPERIMENTAL_CSS_ANIMATIONS_FOR_SVG_COMPONENTS:false][USE_SYNCHRONIZABLE_FOR_MUTABLES:false][USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS:false][ENABLE_SHARED_ELEMENT_TRANSITIONS:false][FORCE_REACT_RENDER_FOR_SETTLED_ANIMATIONS:false]\""
                             ]
                         },
@@ -121,8 +121,8 @@
                         "-include", "Foundation/Foundation.h",
                         "-include", "UIKit/UIKit.h",
                         "-include", "QuartzCore/QuartzCore.h",
-                        "-DREACT_NATIVE_MINOR_VERSION=84",
-                        "-DREANIMATED_VERSION=4.2.1",
+                        "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                        "-DREANIMATED_VERSION=${PACKAGE_VERSION}",
                         "-DREANIMATED_FEATURE_FLAGS=\\\"[RUNTIME_TEST_FLAG:false][DISABLE_COMMIT_PAUSING_MECHANISM:false][ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS:false][EXPERIMENTAL_CSS_ANIMATIONS_FOR_SVG_COMPONENTS:false][USE_SYNCHRONIZABLE_FOR_MUTABLES:false][USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS:false][ENABLE_SHARED_ELEMENT_TRANSITIONS:false][FORCE_REACT_RENDER_FOR_SETTLED_ANIMATIONS:false]\\\""
                     ],
                     "fileMapping": [

@@ -48,16 +48,18 @@
                         "common": {
                             "c": [
                                 "-DWORKLETS_FEATURE_FLAGS=\"[RUNTIME_TEST_FLAG:false][IOS_DYNAMIC_FRAMERATE_ENABLED:true]\"",
-                                "-DWORKLETS_VERSION=0.7.1",
-                                "-DREACT_NATIVE_MINOR_VERSION=84",
-                                "-DHERMES_V1_ENABLED"
+                                "-DWORKLETS_VERSION=${PACKAGE_VERSION}",
+                                "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                                "-DHERMES_V1_ENABLED",
+                                "-DWORKLETS_ENABLED=1"
                             ],
                             "cxx": [
                                 "-fno-cxx-modules",
                                 "-DWORKLETS_FEATURE_FLAGS=\"[RUNTIME_TEST_FLAG:false][IOS_DYNAMIC_FRAMERATE_ENABLED:true]\"",
-                                "-DWORKLETS_VERSION=0.7.1",
-                                "-DREACT_NATIVE_MINOR_VERSION=84",
-                                "-DHERMES_V1_ENABLED"
+                                "-DWORKLETS_VERSION=${PACKAGE_VERSION}",
+                                "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                                "-DHERMES_V1_ENABLED",
+                                "-DWORKLETS_ENABLED=1"
                             ]
                         },
                         "debug": [ "-DHERMES_ENABLE_DEBUGGER=1" ]
@@ -98,9 +100,10 @@
                             "-include", "Foundation/Foundation.h",
                             "-include", "UIKit/UIKit.h",
                             "-DWORKLETS_FEATURE_FLAGS=\"[RUNTIME_TEST_FLAG:false][IOS_DYNAMIC_FRAMERATE_ENABLED:true]\"",
-                            "-DWORKLETS_VERSION=0.7.1",
-                            "-DREACT_NATIVE_MINOR_VERSION=84",
-                            "-DHERMES_V1_ENABLED"
+                            "-DWORKLETS_VERSION=${PACKAGE_VERSION}",
+                            "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                            "-DHERMES_V1_ENABLED",
+                            "-DWORKLETS_ENABLED=1"
                         ],
                         "debug": [ "-DHERMES_ENABLE_DEBUGGER=1" ]
                     },
