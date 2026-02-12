@@ -264,7 +264,7 @@ module Expo
       # @param xcframeworks_dir [String] Absolute path to the .xcframeworks directory
       # @param pod_info [Hash] Package info from spm.config.json lookup
       def add_script_phases(spec, product_name, xcframeworks_dir, pod_info)
-        script_path = File.join(__dir__, 'replace-expo-xcframework.js')
+        script_path = File.join(__dir__, 'replace-xcframework.js')
         switch_stamp = "$(DERIVED_FILE_DIR)/expo-xcframework-switch-#{product_name}-$(CONFIGURATION).stamp"
         dsym_stamp = "$(DERIVED_FILE_DIR)/expo-dsym-copy-#{product_name}-$(CONFIGURATION).stamp"
 
