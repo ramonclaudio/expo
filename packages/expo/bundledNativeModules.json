@@ -86,7 +86,7 @@
   "expo-tracking-transparency": "~5.2.4",
   "expo-updates": "~0.28.18",
   "expo-video-thumbnails": "~9.1.3",
-  "expo-video": "~2.2.2",
+  "expo-video": "~2.2.3",
   "expo-web-browser": "~14.2.0",
   "jest-expo": "~53.0.14",
   "lottie-react-native": "7.2.2",
