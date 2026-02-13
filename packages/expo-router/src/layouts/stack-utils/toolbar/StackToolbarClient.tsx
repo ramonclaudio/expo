@@ -1,6 +1,6 @@
 'use client';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import React, { Fragment, isValidElement, useEffect, type ReactNode } from 'react';
+import React, { Fragment, isValidElement, type ReactNode } from 'react';
 import { useMemo } from 'react';
 
 import {
@@ -22,7 +22,6 @@ import { ToolbarPlacementContext, useToolbarPlacement, type ToolbarPlacement } f
 import { StackToolbarBadge, StackToolbarIcon, StackToolbarLabel } from './toolbar-primitives';
 import { NativeMenuContext } from '../../../link/NativeMenuContext';
 import { RouterToolbarHost } from '../../../toolbar/native';
-import { useNavigation } from '../../../useNavigation';
 import { isChildOfType } from '../../../utils/children';
 import { Screen } from '../../../views/Screen';
 
@@ -137,32 +136,29 @@ const StackToolbarBottom = ({ children }: StackToolbarProps) => {
 };
 
 const StackToolbarHeader = ({ children, placement, asChild }: StackToolbarProps) => {
-  const navigation = useNavigation();
-
   if (placement !== 'left' && placement !== 'right') {
     throw new Error(
       `Invalid placement "${placement}" for Stack.Toolbar. Expected "left" or "right".`
     );
   }
 
-  useEffect(() => {
-    return () => {
-      const optionKey =
-        placement === 'right' ? 'unstable_headerRightItems' : 'unstable_headerLeftItems';
-      navigation.setOptions({
-        [optionKey]: () => [],
-      } as NativeStackNavigationOptions);
-    };
-  }, [navigation, placement]);
-
   const updatedOptions = useMemo(
     () => appendStackToolbarPropsToOptions({}, { children, placement, asChild }),
     [children, placement, asChild]
   );
 
+  const cleanupOptions = useMemo(
+    () =>
+      ({
+        [placement === 'right' ? 'unstable_headerRightItems' : 'unstable_headerLeftItems']:
+          () => [],
+      }) as NativeStackNavigationOptions,
+    [placement]
+  );
+
   return (
     <ToolbarPlacementContext.Provider value={placement}>
-      <Screen options={updatedOptions} />
+      <Screen options={updatedOptions} internal__cleanupOptions={cleanupOptions} />
     </ToolbarPlacementContext.Provider>
   );
 };

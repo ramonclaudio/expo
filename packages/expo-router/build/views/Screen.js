@@ -9,7 +9,7 @@ const useNavigation_1 = require("../useNavigation");
 const useSafeLayoutEffect_1 = require("./useSafeLayoutEffect");
 const stack_1 = require("../utils/stack");
 /** Component for setting the current screen's options dynamically. */
-function Screen({ name, options }) {
+function Screen({ name, options, internal__cleanupOptions, }) {
     if (name) {
         throw new Error(`The name prop on the Screen component may only be used when it is inside a Layout route`);
     }
@@ -26,6 +26,16 @@ function Screen({ name, options }) {
             }
         }
     }, [isFocused, isPreloaded, navigation, options]);
+    (0, useSafeLayoutEffect_1.useSafeLayoutEffect)(() => {
+        if (!internal__cleanupOptions || !Object.keys(internal__cleanupOptions).length) {
+            return;
+        }
+        return () => {
+            if (!isPreloaded || (isPreloaded && isFocused)) {
+                navigation.setOptions(internal__cleanupOptions);
+            }
+        };
+    }, [isFocused, isPreloaded, navigation, internal__cleanupOptions]);
     return null;
 }
 function isScreen(child, contextKey) {

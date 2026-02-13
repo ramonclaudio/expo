@@ -47,7 +47,6 @@ const context_1 = require("./context");
 const toolbar_primitives_1 = require("./toolbar-primitives");
 const NativeMenuContext_1 = require("../../../link/NativeMenuContext");
 const native_1 = require("../../../toolbar/native");
-const useNavigation_1 = require("../../../useNavigation");
 const children_1 = require("../../../utils/children");
 const Screen_1 = require("../../../views/Screen");
 /**
@@ -128,21 +127,15 @@ const StackToolbarBottom = ({ children }) => {
     </context_1.ToolbarPlacementContext.Provider>);
 };
 const StackToolbarHeader = ({ children, placement, asChild }) => {
-    const navigation = (0, useNavigation_1.useNavigation)();
     if (placement !== 'left' && placement !== 'right') {
         throw new Error(`Invalid placement "${placement}" for Stack.Toolbar. Expected "left" or "right".`);
     }
-    (0, react_1.useEffect)(() => {
-        return () => {
-            const optionKey = placement === 'right' ? 'unstable_headerRightItems' : 'unstable_headerLeftItems';
-            navigation.setOptions({
-                [optionKey]: () => [],
-            });
-        };
-    }, [navigation, placement]);
     const updatedOptions = (0, react_2.useMemo)(() => appendStackToolbarPropsToOptions({}, { children, placement, asChild }), [children, placement, asChild]);
+    const cleanupOptions = (0, react_2.useMemo)(() => ({
+        [placement === 'right' ? 'unstable_headerRightItems' : 'unstable_headerLeftItems']: () => [],
+    }), [placement]);
     return (<context_1.ToolbarPlacementContext.Provider value={placement}>
-      <Screen_1.Screen options={updatedOptions}/>
+      <Screen_1.Screen options={updatedOptions} internal__cleanupOptions={cleanupOptions}/>
     </context_1.ToolbarPlacementContext.Provider>);
 };
 function convertToolbarChildrenToUnstableItems(children, side) {

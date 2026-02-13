@@ -10,9 +10,16 @@ export type ScreenProps<TOptions extends Record<string, any> = Record<string, an
     name?: string;
     initialParams?: Record<string, any>;
     options?: TOptions;
+    /**
+     * Options to apply when the component unmounts. Used to reset navigation options
+     * (e.g., clearing toolbar items) through the same safe mechanism as `options`.
+     *
+     * @internal
+     */
+    internal__cleanupOptions?: TOptions;
 };
 /** Component for setting the current screen's options dynamically. */
-export declare function Screen<TOptions extends object = object>({ name, options }: ScreenProps<TOptions>): null;
+export declare function Screen<TOptions extends object = object>({ name, options, internal__cleanupOptions, }: ScreenProps<TOptions>): null;
 export declare function isScreen(child: ReactNode, contextKey?: string): child is ReactElement<ScreenProps & {
     name: string;
 }>;

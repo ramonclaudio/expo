@@ -17,10 +17,21 @@ export type ScreenProps<TOptions extends Record<string, any> = Record<string, an
   name?: string;
   initialParams?: Record<string, any>;
   options?: TOptions;
+  /**
+   * Options to apply when the component unmounts. Used to reset navigation options
+   * (e.g., clearing toolbar items) through the same safe mechanism as `options`.
+   *
+   * @internal
+   */
+  internal__cleanupOptions?: TOptions;
 };
 
 /** Component for setting the current screen's options dynamically. */
-export function Screen<TOptions extends object = object>({ name, options }: ScreenProps<TOptions>) {
+export function Screen<TOptions extends object = object>({
+  name,
+  options,
+  internal__cleanupOptions,
+}: ScreenProps<TOptions>) {
   if (name) {
     throw new Error(
       `The name prop on the Screen component may only be used when it is inside a Layout route`
@@ -40,6 +51,17 @@ export function Screen<TOptions extends object = object>({ name, options }: Scre
       }
     }
   }, [isFocused, isPreloaded, navigation, options]);
+
+  useSafeLayoutEffect(() => {
+    if (!internal__cleanupOptions || !Object.keys(internal__cleanupOptions).length) {
+      return;
+    }
+    return () => {
+      if (!isPreloaded || (isPreloaded && isFocused)) {
+        navigation.setOptions(internal__cleanupOptions);
+      }
+    };
+  }, [isFocused, isPreloaded, navigation, internal__cleanupOptions]);
 
   return null;
 }
