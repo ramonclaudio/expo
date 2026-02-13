@@ -82,7 +82,7 @@ export async function spawnXcodeBuildWithSpinner(
         spinner.fail(`${spinnerText} failed with code ${code}`);
         summary && logger.error('\n' + summary.trim() + '\n');
 
-        // On failure, show warnings first (consistent with SPMVerify)
+        // On failure, show warnings first (consistent with FrameworkVerifier)
         if (hasWarnings) {
           logger.log(chalk.gray('      Warnings:'));
           formatter.warnings
@@ -93,7 +93,7 @@ export async function spawnXcodeBuildWithSpinner(
           }
         }
 
-        // Show errors (consistent with SPMVerify style)
+        // Show errors (consistent with FrameworkVerifier style)
         if (formatter.errors.length > 0) {
           logger.log(chalk.gray('      Errors:'));
           formatter.errors

@@ -9,17 +9,17 @@ import type { SPMPackageSource } from './ExternalPackage';
 import { Frameworks } from './Frameworks';
 import { BuildFlavor } from './Prebuilder.types';
 import { SPMProduct } from './SPMConfig.types';
+import { AsyncSpinner, createAsyncSpinner } from './Utils';
 import type {
-  VerificationResult,
+  XCFrameworkVerificationResult,
   XCFrameworkSlice,
   XCFrameworkVerificationReport,
-  SliceVerificationReport,
-  VerifyOptions,
-} from './SPMVerify.types';
-import { AsyncSpinner, createAsyncSpinner } from './Utils';
+  XCFrameworkSliceVerificationReport,
+  XCFrameworkVerifyOptions,
+} from './Verifier.types';
 import { verifyDsymPresence, verifyDsymUuidMatch, verifyDsymDebugPrefixMapping } from './dSYM';
 
-export const SPMVerify = {
+export const FrameworkVerifier = {
   /**
    * Verifies a product xcframework and returns verification reports for the product.
    *
@@ -33,7 +33,7 @@ export const SPMVerify = {
     pkg: SPMPackageSource,
     product: SPMProduct,
     buildFlavor: BuildFlavor,
-    options?: VerifyOptions
+    options?: XCFrameworkVerifyOptions
   ): Promise<Map<string, XCFrameworkVerificationReport>> => {
     logger.info(
       `🔍 Verifying xcframework for ${chalk.green(pkg.packageName)}/${chalk.green(product.name)} [${buildFlavor.toLowerCase()}]`
@@ -416,7 +416,7 @@ const getSdkPath = (sdkName: string): string | null => {
 /**
  * Verifies required tools are available
  */
-const checkRequiredTools = (): VerificationResult => {
+const checkRequiredTools = (): XCFrameworkVerificationResult => {
   const requiredTools = ['plutil', 'codesign', 'lipo', 'file', 'otool', 'xcrun', 'clang'];
   const missingTools: string[] = [];
 
@@ -447,7 +447,7 @@ const checkRequiredTools = (): VerificationResult => {
 /**
  * Verifies Info.plist is valid
  */
-const verifyInfoPlist = (xcframeworkPath: string): VerificationResult => {
+const verifyInfoPlist = (xcframeworkPath: string): XCFrameworkVerificationResult => {
   const infoPlistPath = path.join(xcframeworkPath, 'Info.plist');
 
   if (!fs.existsSync(infoPlistPath)) {
@@ -476,7 +476,7 @@ const verifyInfoPlist = (xcframeworkPath: string): VerificationResult => {
 /**
  * Verifies codesign of xcframework
  */
-const verifyCodesign = (xcframeworkPath: string): VerificationResult => {
+const verifyCodesign = (xcframeworkPath: string): XCFrameworkVerificationResult => {
   const result = execCommand('codesign', [
     '--verify',
     '--deep',
@@ -570,7 +570,7 @@ const findFrameworkSlices = (xcframeworkPath: string): XCFrameworkSlice[] => {
 /**
  * Gets Mach-O information for a binary
  */
-const getMachoInfo = (binaryPath: string): VerificationResult => {
+const getMachoInfo = (binaryPath: string): XCFrameworkVerificationResult => {
   if (!fs.existsSync(binaryPath)) {
     return {
       success: false,
@@ -615,7 +615,7 @@ const getLinkedDependencies = (binaryPath: string): string[] => {
 /**
  * Verifies Headers directory presence
  */
-const verifyHeaders = (frameworkPath: string): VerificationResult => {
+const verifyHeaders = (frameworkPath: string): XCFrameworkVerificationResult => {
   const headersPath = path.join(frameworkPath, 'Headers');
 
   if (fs.existsSync(headersPath) && fs.statSync(headersPath).isDirectory()) {
@@ -634,7 +634,10 @@ const verifyHeaders = (frameworkPath: string): VerificationResult => {
 /**
  * Verifies Modules directory presence
  */
-const verifyModules = (frameworkPath: string, isObjCOnly: boolean): VerificationResult => {
+const verifyModules = (
+  frameworkPath: string,
+  isObjCOnly: boolean
+): XCFrameworkVerificationResult => {
   const modulesPath = path.join(frameworkPath, 'Modules');
 
   if (fs.existsSync(modulesPath) && fs.statSync(modulesPath).isDirectory()) {
@@ -662,7 +665,10 @@ const verifyModules = (frameworkPath: string, isObjCOnly: boolean): Verification
 /**
  * Verifies module.modulemap presence
  */
-const verifyModuleMap = (frameworkPath: string, isObjCOnly: boolean): VerificationResult => {
+const verifyModuleMap = (
+  frameworkPath: string,
+  isObjCOnly: boolean
+): XCFrameworkVerificationResult => {
   const moduleMapPath = path.join(frameworkPath, 'Modules', 'module.modulemap');
 
   if (fs.existsSync(moduleMapPath)) {
@@ -694,7 +700,7 @@ const verifyModularHeaders = async (
   slice: XCFrameworkSlice,
   xcframeworkPath: string,
   dependencyXcframeworkPaths: string[] = []
-): Promise<VerificationResult> => {
+): Promise<XCFrameworkVerificationResult> => {
   if (!slice.sdkName) {
     return {
       success: false,
@@ -829,7 +835,7 @@ const verifyClangModuleImport = async (
   slice: XCFrameworkSlice,
   xcframeworkPath: string,
   dependencyXcframeworkPaths: string[] = []
-): Promise<VerificationResult> => {
+): Promise<XCFrameworkVerificationResult> => {
   if (!slice.sdkName) {
     return {
       success: false,
@@ -985,7 +991,7 @@ const hasSwiftCode = (frameworkPath: string): boolean => {
  */
 const verifySwiftInterfaceTypecheck = async (
   slice: XCFrameworkSlice
-): Promise<VerificationResult> => {
+): Promise<XCFrameworkVerificationResult> => {
   // First check if this framework contains Swift code at all
   if (!hasSwiftCode(slice.frameworkPath)) {
     return {
@@ -1237,7 +1243,7 @@ const verifyAsync = async (
   pkg: SPMPackageSource,
   product: SPMProduct,
   buildFlavor: BuildFlavor,
-  options?: VerifyOptions
+  options?: XCFrameworkVerifyOptions
 ): Promise<XCFrameworkVerificationReport> => {
   const xcframeworkPath = Frameworks.getFrameworkPath(pkg.path, product.name, buildFlavor);
 
@@ -1350,10 +1356,10 @@ const verifyAllSlices = async (
   pkg: SPMPackageSource,
   slices: XCFrameworkSlice[],
   xcframeworkPath: string,
-  options?: VerifyOptions,
+  options?: XCFrameworkVerifyOptions,
   dependencyXcframeworkPaths: string[] = []
-): Promise<SliceVerificationReport[]> => {
-  const reports: SliceVerificationReport[] = [];
+): Promise<XCFrameworkSliceVerificationReport[]> => {
+  const reports: XCFrameworkSliceVerificationReport[] = [];
 
   for (const slice of slices) {
     const spinner = createAsyncSpinner(`Verifying slice: ${slice.sliceId}`, pkg);
@@ -1382,7 +1388,7 @@ const verifyAllSlices = async (
 /**
  * Collects issue descriptions from a slice verification report.
  */
-const collectSliceIssues = (report: SliceVerificationReport): string[] => {
+const collectSliceIssues = (report: XCFrameworkSliceVerificationReport): string[] => {
   const issues: string[] = [];
 
   if (!report.headersPresent.success) issues.push('headers');
@@ -1405,9 +1411,9 @@ const verifySlice = async (
   slice: XCFrameworkSlice,
   xcframeworkPath: string,
   spinner: AsyncSpinner,
-  options?: VerifyOptions,
+  options?: XCFrameworkVerifyOptions,
   dependencyXcframeworkPaths: string[] = []
-): Promise<SliceVerificationReport> => {
+): Promise<XCFrameworkSliceVerificationReport> => {
   // Detect if this is an ObjC-only framework (no Swift modules)
   const isObjCOnly = !hasSwiftCode(slice.frameworkPath);
 
@@ -1417,9 +1423,12 @@ const verifySlice = async (
   const modulesPresent = verifyModules(slice.frameworkPath, isObjCOnly);
   const moduleMapPresent = verifyModuleMap(slice.frameworkPath, isObjCOnly);
 
-  let modularHeadersValid: VerificationResult = { success: true, message: 'Skipped' };
-  let clangModuleImport: VerificationResult = { success: true, message: 'Skipped' };
-  let swiftInterfaceTypecheck: VerificationResult = { success: true, message: 'Skipped' };
+  let modularHeadersValid: XCFrameworkVerificationResult = { success: true, message: 'Skipped' };
+  let clangModuleImport: XCFrameworkVerificationResult = { success: true, message: 'Skipped' };
+  let swiftInterfaceTypecheck: XCFrameworkVerificationResult = {
+    success: true,
+    message: 'Skipped',
+  };
 
   if (!options?.skipClangCheck) {
     spinner.info('Verifying modular headers...');
@@ -1452,9 +1461,9 @@ const verifySlice = async (
   }
 
   // dSYM verification: presence, UUID match, and debug prefix mapping
-  let dsymPresent: VerificationResult = { success: true, message: 'Skipped' };
-  let dsymUuidMatch: VerificationResult = { success: true, message: 'Skipped' };
-  let dsymDebugPrefixMapping: VerificationResult = { success: true, message: 'Skipped' };
+  let dsymPresent: XCFrameworkVerificationResult = { success: true, message: 'Skipped' };
+  let dsymUuidMatch: XCFrameworkVerificationResult = { success: true, message: 'Skipped' };
+  let dsymDebugPrefixMapping: XCFrameworkVerificationResult = { success: true, message: 'Skipped' };
 
   if (!options?.skipDsymCheck) {
     spinner.info('Verifying dSYM...');

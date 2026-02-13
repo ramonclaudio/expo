@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 
-import type { VerificationResult, XCFrameworkSlice } from './SPMVerify.types';
+import type { XCFrameworkVerificationResult, XCFrameworkSlice } from './Verifier.types';
 
 /**
  * Run a command synchronously and return stdout/stderr/exitCode.
@@ -57,7 +57,7 @@ export const findDsymForSlice = (
 export const verifyDsymPresence = (
   xcframeworkPath: string,
   slice: XCFrameworkSlice
-): VerificationResult => {
+): XCFrameworkVerificationResult => {
   const dsymPath = findDsymForSlice(xcframeworkPath, slice.sliceId, slice.frameworkName);
 
   if (!dsymPath) {
@@ -90,7 +90,7 @@ export const verifyDsymPresence = (
 export const verifyDsymUuidMatch = (
   xcframeworkPath: string,
   slice: XCFrameworkSlice
-): VerificationResult => {
+): XCFrameworkVerificationResult => {
   const dsymPath = findDsymForSlice(xcframeworkPath, slice.sliceId, slice.frameworkName);
   if (!dsymPath) {
     return {
@@ -172,7 +172,7 @@ export const verifyDsymUuidMatch = (
 export const verifyDsymDebugPrefixMapping = (
   xcframeworkPath: string,
   slice: XCFrameworkSlice
-): VerificationResult => {
+): XCFrameworkVerificationResult => {
   const dsymPath = findDsymForSlice(xcframeworkPath, slice.sliceId, slice.frameworkName);
   if (!dsymPath) {
     return {

@@ -22,7 +22,7 @@ import {
   SigningOptions,
 } from '../prebuilds';
 import { Artifacts } from '../prebuilds/Artifacts';
-import { SPMVerify } from '../prebuilds/SPMVerify';
+import { FrameworkVerifier } from '../prebuilds/Verifier';
 
 type ActionOptions = {
   reactNativeVersion?: string;
@@ -451,7 +451,7 @@ async function main(packageNames: string[], options: ActionOptions) {
           if (options.verify || performAllSteps) {
             try {
               // Verify all products' xcframeworks for this package (logging is handled internally)
-              const verifyResults = await SPMVerify.verifyXCFrameworkAsync(
+              const verifyResults = await FrameworkVerifier.verifyXCFrameworkAsync(
                 pkg,
                 product,
                 currentBuildFlavor

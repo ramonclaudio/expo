@@ -1,7 +1,7 @@
 /**
  * Result of a verification check
  */
-export interface VerificationResult {
+export interface XCFrameworkVerificationResult {
   success: boolean;
   message: string;
   details?: string;
@@ -23,41 +23,41 @@ export interface XCFrameworkSlice {
  */
 export interface XCFrameworkVerificationReport {
   xcframeworkPath: string;
-  infoPlistValid: VerificationResult;
-  codesignValid: VerificationResult;
+  infoPlistValid: XCFrameworkVerificationResult;
+  codesignValid: XCFrameworkVerificationResult;
   junkFiles: string[];
-  slices: SliceVerificationReport[];
+  slices: XCFrameworkSliceVerificationReport[];
   overallSuccess: boolean;
 }
 
 /**
  * Verification report for a single slice
  */
-export interface SliceVerificationReport {
+export interface XCFrameworkSliceVerificationReport {
   sliceId: string;
   frameworkName: string;
   /** True if the framework contains only ObjC/C++ code (no Swift modules) */
   isObjCOnly: boolean;
-  machoInfo: VerificationResult;
+  machoInfo: XCFrameworkVerificationResult;
   linkedDeps: string[];
-  headersPresent: VerificationResult;
-  modulesPresent: VerificationResult;
-  moduleMapPresent: VerificationResult;
-  modularHeadersValid: VerificationResult;
-  clangModuleImport: VerificationResult;
-  swiftInterfaceTypecheck: VerificationResult;
+  headersPresent: XCFrameworkVerificationResult;
+  modulesPresent: XCFrameworkVerificationResult;
+  moduleMapPresent: XCFrameworkVerificationResult;
+  modularHeadersValid: XCFrameworkVerificationResult;
+  clangModuleImport: XCFrameworkVerificationResult;
+  swiftInterfaceTypecheck: XCFrameworkVerificationResult;
   /** Whether a matching dSYM bundle exists for this slice */
-  dsymPresent: VerificationResult;
+  dsymPresent: XCFrameworkVerificationResult;
   /** Whether dSYM UUIDs match the framework binary UUIDs */
-  dsymUuidMatch: VerificationResult;
+  dsymUuidMatch: XCFrameworkVerificationResult;
   /** Whether DWARF source paths use the canonical /expo-src/ prefix (no absolute CI paths) */
-  dsymDebugPrefixMapping: VerificationResult;
+  dsymDebugPrefixMapping: XCFrameworkVerificationResult;
 }
 
 /**
  * Options for verification
  */
-export interface VerifyOptions {
+export interface XCFrameworkVerifyOptions {
   /** Skip codesign verification */
   skipCodesign?: boolean;
   /** Skip clang module import check */
