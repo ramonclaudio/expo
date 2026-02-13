@@ -259,6 +259,8 @@ jobs:
           # Version `1.x` fails due to https://github.com/oven-sh/setup-bun/issues/37
           # TODO(cedric): swap `latest` back once the issue is resolved
           bun-version: latest
+      - name: 🧹 Cleanup GitHub Linux runner disk space
+        uses: ./.github/actions/cleanup-linux-disk-space
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -293,8 +295,6 @@ jobs:
         id: expo-caches
         with:
           gradle: 'true'
-          yarn-workspace: 'true'
-          yarn-tools: 'true'
           react-native-gradle-downloads: 'true'
       - name: 🧶 Install workspace node modules
         run: yarn install --frozen-lockfile
