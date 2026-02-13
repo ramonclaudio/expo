@@ -24,7 +24,7 @@ const STORE = {
 };
 export function createRequestHandler(params) {
     const makeRequestAPISetup = (request, context) => ({
-        origin: (context ?? getContext()).site?.url || request.headers.get('Origin') || new URL(request.url).origin,
+        origin: (context ?? getContext()).site?.url || request.headers.get('Origin') || 'null',
         environment: (context ?? getContext()).deploy?.context || null,
         waitUntil: (context ?? getContext()).waitUntil,
     });
