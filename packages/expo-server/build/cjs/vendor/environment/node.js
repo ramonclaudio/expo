@@ -50,7 +50,7 @@ function createNodeEnv(params) {
 function createNodeRequestScope(scopeDefinition, params) {
     return (0, runtime_1.createRequestScope)(scopeDefinition, (request) => ({
         requestHeaders: request.headers,
-        origin: request.headers.get('Origin') || 'null',
+        origin: request.headers.get('Origin') || new URL(request.url).origin,
         environment: params.environment ?? process.env.NODE_ENV,
     }));
 }
