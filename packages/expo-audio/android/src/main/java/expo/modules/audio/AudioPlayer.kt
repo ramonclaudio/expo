@@ -164,7 +164,7 @@ class AudioPlayer(
     }
 
     override fun onIsLoadingChanged(isLoading: Boolean) {
-      sendPlayerUpdate(mapOf("isLoaded" to (ref.playbackState == Player.STATE_READY && !isLoading)))
+      sendPlayerUpdate()
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -230,7 +230,7 @@ class AudioPlayer(
   fun currentStatus(): Map<String, Any?> {
     val isMuted = ref.volume == 0f
     val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-    val isLoaded = ref.playbackState == Player.STATE_READY && !ref.isLoading
+    val isLoaded = ref.playbackState == Player.STATE_READY
     val isBuffering = ref.playbackState == Player.STATE_BUFFERING
     val playingStatus = if (isBuffering) intendedPlayingState else ref.isPlaying
 
