@@ -45,7 +45,7 @@ class Contact(var contactId: String, var appContext: AppContext) {
 
   var prefix: String? = ""
   var suffix: String? = ""
-  var phoneticFirstName: String? = ""
+  var phoneticFirstName: String? = "cokolwiek"
   var phoneticMiddleName: String? = ""
   var phoneticLastName: String? = ""
   var company: String? = ""
