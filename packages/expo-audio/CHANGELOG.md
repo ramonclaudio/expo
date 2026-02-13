@@ -15,7 +15,7 @@
 
 ### 💡 Others
 
-- [Android][Web] Improve `isLoaded` reliability and threading improvements.
+- [Android] Improve `isLoaded` reliability and threading improvements.
 
 ## 55.0.5 — 2026-02-08
 
