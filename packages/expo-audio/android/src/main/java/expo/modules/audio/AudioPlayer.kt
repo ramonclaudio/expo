@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
 import java.util.UUID
 
 private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
@@ -62,7 +62,7 @@ class AudioPlayer(
   var isActiveForLockScreen = false
   private var metadata: Metadata? = null
 
-  private var playerScope = CoroutineScope(Dispatchers.Default)
+  private var playerScope = CoroutineScope(Dispatchers.Main)
   private var samplingEnabled = false
   private var visualizer: Visualizer? = null
   private var playing = false
@@ -160,15 +160,11 @@ class AudioPlayer(
       if (isTransient) {
         return
       }
-      playerScope.launch {
-        sendPlayerUpdate(mapOf("playing" to isPlaying))
-      }
+      sendPlayerUpdate(mapOf("playing" to isPlaying))
     }
 
     override fun onIsLoadingChanged(isLoading: Boolean) {
-      playerScope.launch {
-        sendPlayerUpdate(mapOf("isLoaded" to !isLoading))
-      }
+      sendPlayerUpdate(mapOf("isLoaded" to (ref.playbackState == Player.STATE_READY && !isLoading)))
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -180,22 +176,18 @@ class AudioPlayer(
         intendedPlayingState = false
       }
 
-      playerScope.launch {
-        val updateMap = mutableMapOf<String, Any?>(
-          "playbackState" to playbackStateToString(playbackState)
-        )
-        if (justFinished) {
-          updateMap["didJustFinish"] = true
-          updateMap["playing"] = false
-        }
-        sendPlayerUpdate(updateMap)
+      val updateMap = mutableMapOf<String, Any?>(
+        "playbackState" to playbackStateToString(playbackState)
+      )
+      if (justFinished) {
+        updateMap["didJustFinish"] = true
+        updateMap["playing"] = false
       }
+      sendPlayerUpdate(updateMap)
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-      playerScope.launch {
-        sendPlayerUpdate()
-      }
+      sendPlayerUpdate()
     }
 
     override fun onPositionDiscontinuity(
@@ -204,9 +196,7 @@ class AudioPlayer(
       reason: Int
     ) {
       if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-        playerScope.launch {
-          sendPlayerUpdate(mapOf("currentTime" to (newPosition.positionMs / 1000f)))
-        }
+        sendPlayerUpdate(mapOf("currentTime" to (newPosition.positionMs / 1000f)))
       }
     }
   })
@@ -240,7 +230,7 @@ class AudioPlayer(
   fun currentStatus(): Map<String, Any?> {
     val isMuted = ref.volume == 0f
     val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-    val isLoaded = ref.playbackState == Player.STATE_READY
+    val isLoaded = ref.playbackState == Player.STATE_READY && !ref.isLoading
     val isBuffering = ref.playbackState == Player.STATE_BUFFERING
     val playingStatus = if (isBuffering) intendedPlayingState else ref.isPlaying
 
@@ -262,12 +252,11 @@ class AudioPlayer(
     )
   }
 
-  private suspend fun sendPlayerUpdate(map: Map<String, Any?>? = null) =
-    withContext(Dispatchers.Main) {
-      val data = currentStatus()
-      val body = map?.let { data + it } ?: data
-      emit(PLAYBACK_STATUS_UPDATE, body)
-    }
+  private fun sendPlayerUpdate(map: Map<String, Any?>? = null) {
+    val data = currentStatus()
+    val body = map?.let { data + it } ?: data
+    emit(PLAYBACK_STATUS_UPDATE, body)
+  }
 
   private fun sendAudioSampleUpdate(sample: List<Float>) {
     val body = mapOf(
