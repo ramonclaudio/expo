@@ -274,7 +274,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ccache
-          ccache --set-config=sloppiness=pch_defines,time_macros,file_macro,include_file_mtime,include_file_ctime
+          ccache --set-config=sloppiness=pch_defines,time_macros,file_macro,include_file_mtime,include_file_ctime,compiler_check=content
           ccache -p
       - name: Set env
         run: |
