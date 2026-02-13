@@ -330,14 +330,14 @@ jobs:
         run: |
           # Since we limit this workflow only triggered from limited paths, we should use custom base commit
           echo base-commit=$(git log -n 1 main --pretty=format:'%H' -- .github/workflows/test-suite.yml apps/bare-expo apps/test-suite packages yarn.lock) >> "$GITHUB_OUTPUT"
-      # - name: 📹 Check fingerprint
-      #   id: fingerprint
-      #   uses: expo/actions/fingerprint@main
-      #   with:
-      #     working-directory: apps/bare-expo
-      #     previous-git-commit: ${{ steps.base-commit.outputs.base-commit }}
-      #     fingerprint-state-output-file: ${{ runner.temp }}/fingerprint-state.json
-      #     fingerprint-db-cache-path: .fingerprint.db
+      - name: 📹 Check fingerprint
+        id: fingerprint
+        uses: expo/actions/fingerprint@main
+        with:
+          working-directory: apps/bare-expo
+          previous-git-commit: ${{ steps.base-commit.outputs.base-commit }}
+          fingerprint-state-output-file: ${{ runner.temp }}/fingerprint-state.json
+          fingerprint-db-cache-path: .fingerprint.db
       - name: 🏗️ Build/Repack Android project (bare-expo)
         uses: expo/actions/repack-app-artifact@main
         timeout-minutes: 35
@@ -346,8 +346,8 @@ jobs:
           NODE_ENV: production
         with:
           platform: android
-          # fingerprint-state-file: ${{ runner.temp }}/fingerprint-state.json
-          # fingerprint-db-cache-path: .fingerprint.db
+          fingerprint-state-file: ${{ runner.temp }}/fingerprint-state.json
+          fingerprint-db-cache-path: .fingerprint.db
           working-directory: apps/bare-expo
           build-command: |
             ./scripts/start-android-e2e-test.ts --build
