@@ -346,8 +346,8 @@ jobs:
           NODE_ENV: production
         with:
           platform: android
-          fingerprint-state-file: ${{ runner.temp }}/fingerprint-state.json
-          fingerprint-db-cache-path: .fingerprint.db
+          # fingerprint-state-file: ${{ runner.temp }}/fingerprint-state.json
+          # fingerprint-db-cache-path: .fingerprint.db
           working-directory: apps/bare-expo
           build-command: |
             ./scripts/start-android-e2e-test.ts --build
