@@ -491,6 +491,9 @@ export class AudioRecorderWeb
   private selectedDeviceId: string | null = null;
   private stream: MediaStream | null = null;
   private handleDeviceChange: (() => void) | null = null;
+  private analyser: AnalyserNode | null = null;
+  private analyserBuffer: Float32Array<ArrayBuffer> | null = null;
+  private meteringEnabled = false;
 
   get isRecording(): boolean {
     return this.mediaRecorder?.state === 'recording';
@@ -554,7 +557,7 @@ export class AudioRecorderWeb
   }
 
   getStatus(): RecorderState {
-    return {
+    const status: RecorderState = {
       canRecord:
         this.mediaRecorder?.state === 'recording' || this.mediaRecorder?.state === 'inactive',
       isRecording: this.mediaRecorder?.state === 'recording',
@@ -562,6 +565,10 @@ export class AudioRecorderWeb
       mediaServicesDidReset: false,
       url: this.uri,
     };
+    if (this.meteringEnabled && this.mediaRecorderIsRecording) {
+      status.metering = this.getMeteringLevel();
+    }
+    return status;
   }
 
   pause(): void {
@@ -644,6 +651,19 @@ export class AudioRecorderWeb
     };
     navigator.mediaDevices.addEventListener('devicechange', this.handleDeviceChange);
 
+    if (options.isMeteringEnabled) {
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const source = ctx.createMediaStreamSource(stream);
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 2048;
+      source.connect(this.analyser);
+      this.analyserBuffer = new Float32Array(this.analyser.frequencyBinCount);
+      this.meteringEnabled = true;
+    }
+
     const defaults = RecordingPresets.HIGH_QUALITY.web;
     const mediaRecorderOptions: MediaRecorderOptions = {};
 
@@ -683,6 +703,12 @@ export class AudioRecorderWeb
       this.mediaRecorderIsRecording = false;
       this.stream = null;
 
+      if (this.analyser) {
+        this.analyser.disconnect();
+        this.analyser = null;
+        this.analyserBuffer = null;
+      }
+
       if (this.handleDeviceChange) {
         navigator.mediaDevices?.removeEventListener('devicechange', this.handleDeviceChange);
         this.handleDeviceChange = null;
@@ -704,6 +730,22 @@ export class AudioRecorderWeb
         name: device.label || 'Unknown Device',
         type: device.deviceId === 'default' ? 'Default' : 'Unknown',
       }));
+  }
+
+  private getMeteringLevel(): number {
+    if (!this.analyser || !this.analyserBuffer) {
+      return -160;
+    }
+    this.analyser.getFloatTimeDomainData(this.analyserBuffer);
+    let sumSquares = 0;
+    for (let i = 0; i < this.analyserBuffer.length; i++) {
+      sumSquares += this.analyserBuffer[i] * this.analyserBuffer[i];
+    }
+    const rms = Math.sqrt(sumSquares / this.analyserBuffer.length);
+    if (rms === 0) {
+      return -160;
+    }
+    return 20 * Math.log10(rms);
   }
 
   private getAudioRecorderDurationMillis() {
