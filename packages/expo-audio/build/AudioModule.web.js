@@ -51,6 +51,8 @@ function getUserMedia(constraints) {
         getUserMedia.call(navigator, constraints, resolve, reject);
     });
 }
+let isAudioActive = true;
+const activePlayers = new Set();
 function getStatusFromMedia(media, id) {
     const isPlaying = !!(media.currentTime > 0 &&
         !media.paused &&
@@ -82,6 +84,7 @@ export class AudioPlayerWeb extends globalThis.expo.SharedObject {
         this.interval = Math.max(updateInterval, 1);
         this.crossOrigin = crossOrigin;
         this.media = this._createMediaElement();
+        activePlayers.add(this);
     }
     id = nextId();
     isAudioSamplingSupported = false;
@@ -136,6 +139,9 @@ export class AudioPlayerWeb extends globalThis.expo.SharedObject {
         return getStatusFromMedia(this.media, this.id);
     }
     play() {
+        if (!isAudioActive) {
+            return;
+        }
         this.media.play();
         this.isPlaying = true;
     }
@@ -172,7 +178,7 @@ export class AudioPlayerWeb extends globalThis.expo.SharedObject {
         this.media.pause();
         this.media.removeAttribute('src');
         this.media.load();
-        getStatusFromMedia(this.media, this.id);
+        activePlayers.delete(this);
     }
     setActiveForLockScreen(active, metadata) { }
     updateLockScreenMetadata(metadata) { }
@@ -397,7 +403,16 @@ export class AudioRecorderWeb extends globalThis.expo.SharedObject {
     }
 }
 export async function setAudioModeAsync(mode) { }
-export async function setIsAudioActiveAsync(active) { }
+export async function setIsAudioActiveAsync(active) {
+    isAudioActive = active;
+    if (!active) {
+        for (const player of activePlayers) {
+            if (player.playing) {
+                player.pause();
+            }
+        }
+    }
+}
 export async function getRecordingPermissionsAsync() {
     const maybeStatus = await getPermissionWithQueryAsync('microphone');
     switch (maybeStatus) {

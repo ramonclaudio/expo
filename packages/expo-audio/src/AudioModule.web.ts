@@ -73,6 +73,9 @@ function getUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream>
   });
 }
 
+let isAudioActive = true;
+const activePlayers = new Set<AudioPlayerWeb>();
+
 function getStatusFromMedia(media: HTMLMediaElement, id: number): AudioStatus {
   const isPlaying = !!(
     media.currentTime > 0 &&
@@ -112,6 +115,7 @@ export class AudioPlayerWeb
     this.interval = Math.max(updateInterval, 1);
     this.crossOrigin = crossOrigin;
     this.media = this._createMediaElement();
+    activePlayers.add(this);
   }
 
   id: number = nextId();
@@ -183,6 +187,9 @@ export class AudioPlayerWeb
   }
 
   play(): void {
+    if (!isAudioActive) {
+      return;
+    }
     this.media.play();
     this.isPlaying = true;
   }
@@ -232,7 +239,7 @@ export class AudioPlayerWeb
     this.media.pause();
     this.media.removeAttribute('src');
     this.media.load();
-    getStatusFromMedia(this.media, this.id);
+    activePlayers.delete(this);
   }
 
   setActiveForLockScreen(active: boolean, metadata: Record<string, any>): void {}
@@ -524,7 +531,16 @@ export class AudioRecorderWeb
 }
 
 export async function setAudioModeAsync(mode: AudioMode) {}
-export async function setIsAudioActiveAsync(active: boolean) {}
+export async function setIsAudioActiveAsync(active: boolean) {
+  isAudioActive = active;
+  if (!active) {
+    for (const player of activePlayers) {
+      if (player.playing) {
+        player.pause();
+      }
+    }
+  }
+}
 
 export async function getRecordingPermissionsAsync(): Promise<PermissionResponse> {
   const maybeStatus = await getPermissionWithQueryAsync('microphone');
