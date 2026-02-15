@@ -55,7 +55,7 @@
                         "RNGestureHandler_codegen_modules"
                     ],
                     "includeDirectories": [ ".", "../.build/codegen/build/generated/ios/ReactCodegen" ],
-                    "linkedFrameworks": [ "Foundation", "UIKit", "QuartzCore" ],
+                    "linkedFrameworks": [ "Foundation", "UIKit", "QuartzCore", "CoreGraphics" ],
                     "compilerFlags": [
                         "-include", "Foundation/Foundation.h",
                         "-include", "UIKit/UIKit.h",

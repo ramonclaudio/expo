@@ -114,7 +114,7 @@
                         "../../../Common/cpp",
                         "../../../.build/codegen/build/generated/ios/ReactCodegen"
                     ],
-                    "linkedFrameworks": [ "Foundation", "UIKit", "QuartzCore", "CoreMotion" ],
+                    "linkedFrameworks": [ "Foundation", "UIKit", "QuartzCore", "CoreMotion", "CoreGraphics" ],
                     "compilerFlags": [
                         "-include", "Foundation/Foundation.h",
                         "-include", "UIKit/UIKit.h",

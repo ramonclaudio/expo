@@ -790,7 +790,8 @@ function buildSwiftSettings(
   settings.push('.define("RCT_NEW_ARCH_ENABLED")');
 
   // Common C++ flags (not path-dependent)
-  const commonCxxFlags: string[] = ['-Xcc', '-fcxx-modules', '-Xcc', '-fmodules'];
+  // Note: -fcxx-modules is intentionally omitted (see buildCSettings comment).
+  const commonCxxFlags: string[] = ['-Xcc', '-fmodules'];
 
   // Add VFS overlays and header maps per configuration
   // For Swift, each flag needs to be wrapped with -Xcc to pass it to the underlying Clang compiler
@@ -895,9 +896,12 @@ function buildCSettings(
   cSettings.push('.define("RCT_NEW_ARCH_ENABLED", to: "1")');
   cxxSettings.push('.define("RCT_NEW_ARCH_ENABLED", to: "1")');
 
-  // Enable C++ and Clang modules (matches template line 699-700)
-  cSettings.push('.unsafeFlags(["-fcxx-modules", "-fmodules"])');
-  cxxSettings.push('.unsafeFlags(["-fcxx-modules", "-fmodules"])');
+  // Enable Clang modules for ObjC/React module maps (VFS overlays).
+  // Note: -fcxx-modules is intentionally omitted — it enforces strict C++ standard library
+  // module imports (e.g. "must import 'std.optional'"), which breaks third-party code that
+  // relies on transitive includes. Only -fmodules is needed for React's VFS module maps.
+  cSettings.push('.unsafeFlags(["-fmodules"])');
+  cxxSettings.push('.unsafeFlags(["-fmodules"])');
 
   // Enable C++ interop for Objective-C targets (matches template line 701)
   // This allows .m files to use C++ headers from React Native
@@ -934,9 +938,9 @@ function buildCSettings(
         includePath = path.join(buildPath, includePath.slice(pkgBuildPrefix.length));
       }
 
-      // Convert to relative path from packageSwiftDir for portability
-      const relIncludePath = path.relative(packageSwiftDir, includePath);
-      includeFlags.push('-I', relIncludePath);
+      // Use absolute path — SPM passes .unsafeFlags -I values directly to the compiler,
+      // which resolves them relative to its own CWD (inside DerivedData), not the Package.swift dir.
+      includeFlags.push('-I', includePath);
     }
     pushUnsafeFlags([cSettings, cxxSettings], includeFlags);
   }
