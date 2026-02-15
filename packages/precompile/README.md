@@ -45,36 +45,38 @@ The precompiled modules system allows Expo packages to be distributed as prebuil
 
 ### Key Components
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `spm.config.json` | Package root | Defines SPM targets, sources, dependencies |
-| `SPMPackage.ts` | `tools/src/prebuilds/` | Generates Package.swift from config |
-| `Package.ts` | `tools/src/prebuilds/` | Expo package discovery and metadata |
-| `ExternalPackage.ts` | `tools/src/prebuilds/` | External (npm) package support |
-| `precompiled_modules.rb` | `packages/expo-modules-autolinking/scripts/ios/` | Runtime CocoaPods integration |
-| `PackagesConfig.rb` | Same directory | Package configuration and linking |
+| Component                | Location                                         | Purpose                                    |
+| ------------------------ | ------------------------------------------------ | ------------------------------------------ |
+| `spm.config.json`        | Package root                                     | Defines SPM targets, sources, dependencies |
+| `SPMPackage.ts`          | `tools/src/prebuilds/`                           | Generates Package.swift from config        |
+| `Package.ts`             | `tools/src/prebuilds/`                           | Expo package discovery and metadata        |
+| `ExternalPackage.ts`     | `tools/src/prebuilds/`                           | External (npm) package support             |
+| `precompiled_modules.rb` | `packages/expo-modules-autolinking/scripts/ios/` | Runtime CocoaPods integration              |
+| `PackagesConfig.rb`      | Same directory                                   | Package configuration and linking          |
 
 ## Adding SPM Prebuild Support to Expo Packages
 
 ### Eligibility Requirements
 
 ✅ **Required:**
+
 - iOS-compatible package with a `.podspec` file
 - Uses `expo-modules-core` (ExpoModulesCore dependency)
 - Only depends on supported external dependencies
 
 ❌ **Do NOT add SPM support if:**
+
 - Package has complex third-party native dependencies
 - Package doesn't use expo-modules-core
 - Package requires custom build scripts or preprocessing
 
 ### Supported External Dependencies
 
-| Dependency | Description |
-|------------|-------------|
-| `Hermes` | Hermes JavaScript engine XCFramework |
-| `React` | React Native framework with headers |
-| `ReactNativeDependencies` | React Native core dependencies |
+| Dependency                          | Description                            |
+| ----------------------------------- | -------------------------------------- |
+| `Hermes`                            | Hermes JavaScript engine XCFramework   |
+| `React`                             | React Native framework with headers    |
+| `ReactNativeDependencies`           | React Native core dependencies         |
 | `expo-modules-core/ExpoModulesCore` | Expo modules core (for other packages) |
 
 ---
@@ -102,35 +104,35 @@ Create `packages/<package-name>/spm.config.json`:
 
 ```json
 {
-    "$schema": "../../tools/src/prebuilds/schemas/spm.config.schema.json",
-    "products": [
+  "$schema": "../../tools/src/prebuilds/schemas/spm.config.schema.json",
+  "products": [
+    {
+      "name": "PackageName",
+      "podName": "PackageName",
+      "platforms": ["iOS(.v15)"],
+      "externalDependencies": [
+        "ReactNativeDependencies",
+        "React",
+        "Hermes",
+        "expo-modules-core/ExpoModulesCore"
+      ],
+      "targets": [
         {
-            "name": "PackageName",
-            "podName": "PackageName",
-            "platforms": ["iOS(.v15)"],
-            "externalDependencies": [
-                "ReactNativeDependencies",
-                "React",
-                "Hermes",
-                "expo-modules-core/ExpoModulesCore"
-            ],
-            "targets": [
-                {
-                    "type": "swift",
-                    "name": "PackageName",
-                    "path": "ios",
-                    "pattern": "*.swift",
-                    "dependencies": [
-                        "Hermes",
-                        "React",
-                        "ReactNativeDependencies",
-                        "expo-modules-core/ExpoModulesCore"
-                    ],
-                    "linkedFrameworks": ["Foundation", "UIKit"]
-                }
-            ]
+          "type": "swift",
+          "name": "PackageName",
+          "path": "ios",
+          "pattern": "*.swift",
+          "dependencies": [
+            "Hermes",
+            "React",
+            "ReactNativeDependencies",
+            "expo-modules-core/ExpoModulesCore"
+          ],
+          "linkedFrameworks": ["Foundation", "UIKit"]
         }
-    ]
+      ]
+    }
+  ]
 }
 ```
 
@@ -138,37 +140,46 @@ Create `packages/<package-name>/spm.config.json`:
 
 ```json
 {
-    "products": [{
-        "name": "PackageName",
-        "podName": "PackageName",
-        "platforms": ["iOS(.v15)"],
-        "externalDependencies": ["ReactNativeDependencies", "React", "Hermes", "expo-modules-core/ExpoModulesCore"],
-        "targets": [
-            {
-                "type": "objc",
-                "name": "PackageName_ios_objc",
-                "moduleName": "PackageName",
-                "path": "ios",
-                "pattern": "**/*.{m,mm}",
-                "headerPattern": "**/*.h",
-                "dependencies": ["Hermes", "React", "ReactNativeDependencies"],
-                "linkedFrameworks": ["Foundation"],
-                "includeDirectories": ["."]
-            },
-            {
-                "type": "swift",
-                "name": "PackageName",
-                "path": "ios",
-                "pattern": "**/*.swift",
-                "dependencies": [
-                    "Hermes", "React", "ReactNativeDependencies",
-                    "expo-modules-core/ExpoModulesCore",
-                    "PackageName_ios_objc"
-                ],
-                "linkedFrameworks": ["Foundation", "UIKit"]
-            }
-        ]
-    }]
+  "products": [
+    {
+      "name": "PackageName",
+      "podName": "PackageName",
+      "platforms": ["iOS(.v15)"],
+      "externalDependencies": [
+        "ReactNativeDependencies",
+        "React",
+        "Hermes",
+        "expo-modules-core/ExpoModulesCore"
+      ],
+      "targets": [
+        {
+          "type": "objc",
+          "name": "PackageName_ios_objc",
+          "moduleName": "PackageName",
+          "path": "ios",
+          "pattern": "**/*.{m,mm}",
+          "headerPattern": "**/*.h",
+          "dependencies": ["Hermes", "React", "ReactNativeDependencies"],
+          "linkedFrameworks": ["Foundation"],
+          "includeDirectories": ["."]
+        },
+        {
+          "type": "swift",
+          "name": "PackageName",
+          "path": "ios",
+          "pattern": "**/*.swift",
+          "dependencies": [
+            "Hermes",
+            "React",
+            "ReactNativeDependencies",
+            "expo-modules-core/ExpoModulesCore",
+            "PackageName_ios_objc"
+          ],
+          "linkedFrameworks": ["Foundation", "UIKit"]
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -177,6 +188,7 @@ Create `packages/<package-name>/spm.config.json`:
 Update `ios/PackageName.podspec`:
 
 **Before:**
+
 ```ruby
 Pod::Spec.new do |s|
   # ... metadata ...
@@ -188,6 +200,7 @@ end
 ```
 
 **After:**
+
 ```ruby
 Pod::Spec.new do |s|
   # ... metadata ...
@@ -204,13 +217,14 @@ end
 ### Step 4: Build and Verify
 
 ```bash
-# Full pipeline
-et prebuild-packages --build-flavor Debug --react-native-tarball-path <path> <package-name>
+# Full pipeline (all steps, Debug only)
+et prebuild -f Debug --local-react-native-tarball <path> <package-name>
 
-# Or step by step:
-et prebuild-packages --build-flavor Debug --react-native-tarball-path <path> --generate <package-name>
-et prebuild-packages --build-flavor Debug --react-native-tarball-path <path> --build <package-name>
-et prebuild-packages --build-flavor Debug --react-native-tarball-path <path> --verify <package-name>
+# Generate only (skip build, compose, verify):
+et prebuild -f Debug --local-react-native-tarball <path> --skip-build --skip-compose --skip-verify <package-name>
+
+# Verify only (skip other steps):
+et prebuild -f Debug --local-react-native-tarball <path> --skip-generate --skip-artifacts --skip-build --skip-compose <package-name>
 ```
 
 ---
@@ -241,27 +255,31 @@ packages/precompile/.cache/
 You can override the cache location with `EXPO_PREBUILD_CACHE_PATH`:
 
 ```bash
-EXPO_PREBUILD_CACHE_PATH=/custom/cache/path et prebuild-packages ...
+EXPO_PREBUILD_CACHE_PATH=/custom/cache/path et prebuild ...
 ```
 
 ### Cache Management Options
 
-| Flag | Effect |
-|------|--------|
-| `--clean-cache` | Wipes entire dependency cache (forces re-download) |
-| `--prune-cache` | Removes old cache versions, keeps current version |
-| `--clean-all` | Cleans package outputs only (xcframeworks, generated code, build folders) - does NOT touch cache |
-| `--clean-build` | Cleans just the `.build/` folders |
-| `--clean-generated` | Cleans just the generated source code |
+| Flag            | Effect                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------- |
+| `--clean-cache` | Wipes entire dependency cache (forces re-download)                                          |
+| `--clean`       | Cleans package outputs (xcframeworks, generated code, build folders) - does NOT touch cache |
 
-Example - free up disk space by removing old versions:
+Example - clean and rebuild:
+
 ```bash
-et prebuild-packages --build-flavor Debug --prune-cache <package-name>
+et prebuild --clean -f Debug <package-name>
 ```
 
 ### Local Tarball Caching
 
-When using `--react-native-tarball-path` (or similar) with a local tarball, the system tracks the tarball's modification time. If you run the command again with the same tarball, it will skip extraction and use the cached version. When you rebuild the tarball, it will automatically detect the change and re-extract.
+When using `--local-react-native-tarball` (or similar) with a local tarball, the system tracks the tarball's modification time. If you run the command again with the same tarball, it will skip extraction and use the cached version. When you rebuild the tarball, it will automatically detect the change and re-extract.
+
+The `{flavor}` placeholder is supported in tarball paths, allowing separate paths for Debug and Release:
+
+```bash
+et prebuild --local-react-native-tarball "/path/to/{flavor}/React.xcframework.tar.gz" <package-name>
+```
 
 ---
 
@@ -270,62 +288,65 @@ When using `--react-native-tarball-path` (or similar) with a local tarball, the 
 ### Target Types
 
 #### Swift Target
+
 ```json
 {
-    "type": "swift",
-    "name": "TargetName",
-    "path": "ios",
-    "pattern": "*.swift",
-    "exclude": ["Tests/**"],
-    "dependencies": ["expo-modules-core/ExpoModulesCore"],
-    "linkedFrameworks": ["Foundation", "UIKit"]
+  "type": "swift",
+  "name": "TargetName",
+  "path": "ios",
+  "pattern": "*.swift",
+  "exclude": ["Tests/**"],
+  "dependencies": ["expo-modules-core/ExpoModulesCore"],
+  "linkedFrameworks": ["Foundation", "UIKit"]
 }
 ```
 
 #### Objective-C Target
+
 ```json
 {
-    "type": "objc",
-    "name": "PackageName_ios_objc",
-    "moduleName": "PackageName",
-    "path": "ios",
-    "pattern": "**/*.{m,mm}",
-    "headerPattern": "**/*.h",
-    "dependencies": ["Hermes", "React", "ReactNativeDependencies"],
-    "linkedFrameworks": ["Foundation"],
-    "includeDirectories": ["."]
+  "type": "objc",
+  "name": "PackageName_ios_objc",
+  "moduleName": "PackageName",
+  "path": "ios",
+  "pattern": "**/*.{m,mm}",
+  "headerPattern": "**/*.h",
+  "dependencies": ["Hermes", "React", "ReactNativeDependencies"],
+  "linkedFrameworks": ["Foundation"],
+  "includeDirectories": ["."]
 }
 ```
 
 #### C++ Target
+
 ```json
 {
-    "type": "cpp",
-    "name": "PackageName_common_cpp",
-    "moduleName": "PackageNameJSI",
-    "path": "common/cpp",
-    "pattern": "**/*.cpp",
-    "headerPattern": "**/*.h",
-    "dependencies": ["React", "ReactNativeDependencies"],
-    "includeDirectories": ["."]
+  "type": "cpp",
+  "name": "PackageName_common_cpp",
+  "moduleName": "PackageNameJSI",
+  "path": "common/cpp",
+  "pattern": "**/*.cpp",
+  "headerPattern": "**/*.h",
+  "dependencies": ["React", "ReactNativeDependencies"],
+  "includeDirectories": ["."]
 }
 ```
 
 ### Target Options Reference
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `type` | string | `swift`, `objc`, or `cpp` |
-| `name` | string | Target name (required) |
-| `moduleName` | string | Module name for headers (defaults to product name) |
-| `path` | string | Source path relative to package root |
-| `pattern` | string | Glob pattern for source files |
-| `headerPattern` | string | Glob pattern for header files (objc/cpp only) |
-| `exclude` | array | Paths to exclude from sources |
-| `dependencies` | array | Target dependencies |
-| `linkedFrameworks` | array | System frameworks to link |
-| `includeDirectories` | array | Header search paths (objc/cpp only) |
-| `compilerFlags` | array or object | Compiler flags - see below for format options |
+| Option               | Type            | Description                                        |
+| -------------------- | --------------- | -------------------------------------------------- |
+| `type`               | string          | `swift`, `objc`, or `cpp`                          |
+| `name`               | string          | Target name (required)                             |
+| `moduleName`         | string          | Module name for headers (defaults to product name) |
+| `path`               | string          | Source path relative to package root               |
+| `pattern`            | string          | Glob pattern for source files                      |
+| `headerPattern`      | string          | Glob pattern for header files (objc/cpp only)      |
+| `exclude`            | array           | Paths to exclude from sources                      |
+| `dependencies`       | array           | Target dependencies                                |
+| `linkedFrameworks`   | array           | System frameworks to link                          |
+| `includeDirectories` | array           | Header search paths (objc/cpp only)                |
+| `compilerFlags`      | array or object | Compiler flags - see below for format options      |
 
 #### Compiler Flags Format
 
@@ -354,14 +375,14 @@ The `compilerFlags` field supports multiple formats:
 
 ### Product Options Reference
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `name` | string | Product/XCFramework name (required) |
-| `podName` | string | CocoaPods pod name from podspec (required) |
-| `codegenName` | string | Codegen module name from `codegenConfig.name` in package.json (optional, for Fabric components) |
-| `platforms` | array | SPM platforms, e.g., `["iOS(.v15)"]` |
-| `externalDependencies` | array | External package dependencies (React, Hermes, etc.) |
-| `targets` | array | Build targets for this product |
+| Option                 | Type   | Description                                                                                     |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------------- |
+| `name`                 | string | Product/XCFramework name (required)                                                             |
+| `podName`              | string | CocoaPods pod name from podspec (required)                                                      |
+| `codegenName`          | string | Codegen module name from `codegenConfig.name` in package.json (optional, for Fabric components) |
+| `platforms`            | array  | SPM platforms, e.g., `["iOS(.v15)"]`                                                            |
+| `externalDependencies` | array  | External package dependencies (React, Hermes, etc.)                                             |
+| `targets`              | array  | Build targets for this product                                                                  |
 
 ---
 
@@ -399,6 +420,7 @@ For packages with mixed Swift, Objective-C, and C++ code:
 ### Reference: expo-modules-core (5 targets)
 
 See `packages/expo-modules-core/spm.config.json` for a complete example of a complex multi-target package with:
+
 - 2 C++ targets (JSI and Core)
 - 2 ObjC targets (JSI bridge and Core bridge)
 - 1 Swift target (main module)
@@ -434,10 +456,10 @@ PrecompiledModules.configure_codegen_for_prebuilt_modules(installer)
 
 ### Environment Variables
 
-| Variable | Values | Description |
-|----------|--------|-------------|
-| `EXPO_PRECOMPILED_MODULES` | `0`, `1` | Enable/disable precompiled modules |
-| `EXPO_PRECOMPILED_MODULES_BUILD_FLAVOR` | `debug`, `release` | Which XCFramework flavor to use |
+| Variable                                | Values             | Description                        |
+| --------------------------------------- | ------------------ | ---------------------------------- |
+| `EXPO_PRECOMPILED_MODULES`              | `0`, `1`           | Enable/disable precompiled modules |
+| `EXPO_PRECOMPILED_MODULES_BUILD_FLAVOR` | `debug`, `release` | Which XCFramework flavor to use    |
 
 ---
 
@@ -466,46 +488,50 @@ packages/precompile/.build/<package-name>/    # Build artifacts (gitignored)
 
 ## CLI Reference
 
-### Command: `et prebuild-packages`
+### Command: `et prebuild`
 
 ```bash
-et prebuild-packages [options] <package-names...>
+et prebuild [options] <package-names...>
 ```
 
-### Required Options
+### Key Options
 
-| Flag | Description |
-|------|-------------|
-| `--build-flavor <flavor>` | `Debug` or `Release` |
-| `--react-native-tarball-path <path>` | Path to React Native XCFramework tarball |
+| Flag                                  | Description                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `-f, --flavor <flavor>`               | `Debug` or `Release` (default: both)                                      |
+| `--local-react-native-tarball <path>` | Path to React Native XCFramework tarball. Supports `{flavor}` placeholder |
 
-### Pipeline Steps
+### Pipeline Steps (all run by default)
 
-| Flag | Description |
-|------|-------------|
-| `--download` | Download dependencies only |
-| `--generate` | Generate Package.swift |
-| `--build` | Build with xcodebuild |
-| `--compose` | Create XCFrameworks |
-| `--verify` | Validate frameworks |
+| Flag               | Description                   |
+| ------------------ | ----------------------------- |
+| `--skip-artifacts` | Skip downloading dependencies |
+| `--skip-generate`  | Skip generating Package.swift |
+| `--skip-build`     | Skip building with xcodebuild |
+| `--skip-compose`   | Skip creating XCFrameworks    |
+| `--skip-verify`    | Skip validating frameworks    |
 
 ---
 
 ## Troubleshooting
 
 ### Duplicate filename errors
+
 SPM doesn't allow two files with the same name. Use `*.swift` (non-recursive) or rename files.
 
 ### Build fails with missing headers
+
 - Check `includeDirectories` paths
 - Verify `headerPattern` captures all headers
 - Order dependencies correctly (dependencies before dependents)
 
 ### Swift can't find ObjC symbols
+
 - Add ObjC target to Swift target's `dependencies`
 - Verify ObjC target's `moduleName`
 
 ### Verification fails
+
 - Inspect generated Package.swift: `packages/precompile/.build/<package-name>/generated/<ProductName>/Package.swift`
 - Ensure glob patterns match all source files
 
@@ -534,27 +560,27 @@ Attempted to add SPM prebuild support to multiple packages. Found significant li
 
 #### ✅ Successfully Built
 
-| Package | Module Name | Notes |
-|---------|-------------|-------|
+| Package                  | Module Name          | Notes                                                                                          |
+| ------------------------ | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `expo-updates-interface` | `EXUpdatesInterface` | Swift-only package. Works because it doesn't have ObjC code importing ExpoModulesCore headers. |
 
 #### ❌ Failed - ObjC Importing ExpoModulesCore
 
 These packages have ObjC code that imports `<ExpoModulesCore/...>` headers. When SPM tries to build the ObjC target as a module, it fails with "non-modular header" errors because ExpoModulesCore has complex header dependencies on React Native internals (jsi.h, RCTBridgeModule, etc.).
 
-| Package | Error Type |
-|---------|------------|
+| Package            | Error Type                                                  |
+| ------------------ | ----------------------------------------------------------- |
 | `expo-application` | Non-modular header issues when ObjC imports ExpoModulesCore |
-| `expo-audio` | Same - ObjC AudioTapProcessor imports ExpoModulesCore |
-| `expo-location` | Same - ObjC requesters/consumers import ExpoModulesCore |
+| `expo-audio`       | Same - ObjC AudioTapProcessor imports ExpoModulesCore       |
+| `expo-location`    | Same - ObjC requesters/consumers import ExpoModulesCore     |
 
 #### ❌ Failed - No Linkable Symbols (Category-Only ObjC)
 
 These packages are pure Objective-C but only contain categories (extensions on existing classes). They have no class definitions, so the linker can't find any symbols.
 
-| Package | Error |
-|---------|-------|
-| `expo-json-utils` | `symbol(s) not found for architecture arm64` - only has NSDictionary category |
+| Package                   | Error                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `expo-json-utils`         | `symbol(s) not found for architecture arm64` - only has NSDictionary category                                                  |
 | `expo-structured-headers` | `symbol(s) not found for architecture arm64` - same issue despite having EXStructuredHeadersParser class (needs investigation) |
 
 #### Key Findings
@@ -562,6 +588,7 @@ These packages are pure Objective-C but only contain categories (extensions on e
 1. **Swift-only packages work**: Packages that are 100% Swift and use `expo-modules-core/ExpoModulesCore` as a dependency work fine because Swift modules handle the ExpoModulesCore dependency differently.
 
 2. **ObjC + ExpoModulesCore = Broken**: Any package with ObjC code that does `#import <ExpoModulesCore/...>` will fail because:
+
    - SPM compiles ObjC as modules with strict modular header requirements
    - ExpoModulesCore's headers include non-modular React Native headers (jsi.h, RCTBridgeModule.h, etc.)
    - This causes cascading "include of non-modular header inside framework module" errors
@@ -574,7 +601,7 @@ These packages are pure Objective-C but only contain categories (extensions on e
 2. **For mixed packages**: Either convert ObjC to Swift, or find a way to isolate ObjC code that doesn't need ExpoModulesCore imports
 3. **For category-only packages**: Add a dummy class to provide a linkable symbol, OR keep them as source-only
 
-5. **Podspec pattern**: Always use `Expo::PackagesConfig.instance.try_link_with_prebuilt_xcframework(s)` pattern. The method handles all the xcframework detection and linking. Source compilation settings go inside the `if (!...)` block.
+4. **Podspec pattern**: Always use `Expo::PackagesConfig.instance.try_link_with_prebuilt_xcframework(s)` pattern. The method handles all the xcframework detection and linking. Source compilation settings go inside the `if (!...)` block.
 
 #### Packages Analyzed but Deferred
 

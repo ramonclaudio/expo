@@ -37,7 +37,7 @@ The prebuild system uses a centralized versioned cache at `packages/precompile/.
 You can override the cache location with `EXPO_PREBUILD_CACHE_PATH`:
 
 ```bash
-EXPO_PREBUILD_CACHE_PATH=/custom/cache/path et prebuild-packages ...
+EXPO_PREBUILD_CACHE_PATH=/custom/cache/path et prebuild ...
 ```
 
 ### Cache Management Options
@@ -45,8 +45,7 @@ EXPO_PREBUILD_CACHE_PATH=/custom/cache/path et prebuild-packages ...
 | Flag            | Effect                                             |
 | --------------- | -------------------------------------------------- |
 | `--clean-cache` | Wipes entire dependency cache (forces re-download) |
-| `--prune-cache` | Removes old cache versions, keeps current version  |
-| `--clean-all`   | Cleans package outputs only - does NOT touch cache |
+| `--clean`       | Cleans package outputs only - does NOT touch cache |
 
 ## Key Concepts
 
@@ -506,13 +505,13 @@ When packages have dependencies on each other, build them in dependency order:
 
 ```bash
 # Build worklets first (no external package dependencies)
-et prebuild-packages --include-external react-native-worklets ...
+et prebuild --include-external react-native-worklets ...
 
 # Then build reanimated (depends on worklets)
-et prebuild-packages --include-external react-native-reanimated ...
+et prebuild --include-external react-native-reanimated ...
 
 # Or build both together (the system handles ordering):
-et prebuild-packages --include-external react-native-worklets --include-external react-native-reanimated ...
+et prebuild --include-external react-native-worklets react-native-reanimated ...
 ```
 
 ## Remote SPM Package Dependencies

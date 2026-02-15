@@ -27,25 +27,23 @@ import { FrameworkVerifier } from '../prebuilds/Verifier';
 type ActionOptions = {
   reactNativeVersion?: string;
   hermesVersion: string;
+  clean: boolean;
   cleanCache: boolean;
-  cleanBuild: boolean;
-  cleanGenerated: boolean;
-  cleanAll: boolean;
-  buildFlavor?: BuildFlavor;
-  reactNativeTarballPath?: string;
-  hermesTarballPath?: string;
-  reactNativeDependenciesTarballPath?: string;
-  generate?: boolean;
-  artifacts?: boolean;
-  build?: boolean;
-  compose?: boolean;
-  productName?: string;
+  flavor?: BuildFlavor;
+  localReactNativeTarball?: string;
+  localHermesTarball?: string;
+  localReactNativeDepsTarball?: string;
+  skipGenerate: boolean;
+  skipArtifacts: boolean;
+  skipBuild: boolean;
+  skipCompose: boolean;
+  skipVerify: boolean;
+  product?: string;
   platform?: BuildPlatform;
-  verify?: boolean;
   includeExternal?: boolean;
-  pruneCache?: boolean;
-  identity?: string;
+  sign?: string;
   noTimestamp?: boolean;
+  verbose: boolean;
 };
 
 type BuildStatus = {
@@ -195,6 +193,20 @@ function sortPackagesByDependencies(packages: SPMPackageSource[]): SPMPackageSou
   return sorted;
 }
 
+/**
+ * Resolves a local tarball path, substituting `{flavor}` with the current build flavor.
+ * If the path contains no `{flavor}` placeholder, it is used as-is.
+ */
+function resolveLocalTarballPath(
+  templatePath: string | undefined,
+  flavor: BuildFlavor
+): string | undefined {
+  if (!templatePath) {
+    return undefined;
+  }
+  return templatePath.replace(/\{flavor\}/gi, flavor);
+}
+
 async function main(packageNames: string[], options: ActionOptions) {
   const buildStatuses: BuildStatus[] = [];
   const buildErrors: BuildError[] = [];
@@ -202,15 +214,11 @@ async function main(packageNames: string[], options: ActionOptions) {
   const startTime = Date.now();
 
   try {
-    // A convinience flag to perform all steps
-    const performAllSteps =
-      !options.artifacts &&
-      !options.generate &&
-      !options.build &&
-      !options.compose &&
-      !options.verify;
+    // Enable verbose output (full build logs instead of spinners)
+    if (options.verbose) {
+      process.env.CI = '1';
+    }
 
-    const performCleanAll = options.cleanAll;
     const includeExternal = options.includeExternal ?? false;
 
     // Lets get started
@@ -247,13 +255,23 @@ async function main(packageNames: string[], options: ActionOptions) {
     const { reactNativeVersion, hermesVersion } = await getVersionsInfoAsync(options);
 
     // 5. Verify that the tarball paths exist if provided - this is a way to test locally built tarballs,
-    //    and can be used to test out local Hermes, React Native or React Native Dependencies changes
-    await verifyLocalTarballPathsIfSetAsync(options);
+    //    and can be used to test out local Hermes, React Native or React Native Dependencies changes.
+    //    Skip validation for paths containing {flavor} placeholder — those are validated after resolution.
+    const hasPlaceholder = (p?: string) => p?.includes('{flavor}') || p?.includes('{Flavor}');
+    await verifyLocalTarballPathsIfSetAsync({
+      reactNativeTarballPath: hasPlaceholder(options.localReactNativeTarball)
+        ? undefined
+        : options.localReactNativeTarball,
+      hermesTarballPath: hasPlaceholder(options.localHermesTarball)
+        ? undefined
+        : options.localHermesTarball,
+      reactNativeDependenciesTarballPath: hasPlaceholder(options.localReactNativeDepsTarball)
+        ? undefined
+        : options.localReactNativeDepsTarball,
+    });
 
     // Resolve build flavors - if not specified, build both Debug and Release
-    const buildFlavors: BuildFlavor[] = options.buildFlavor
-      ? [options.buildFlavor]
-      : ['Debug', 'Release'];
+    const buildFlavors: BuildFlavor[] = options.flavor ? [options.flavor] : ['Debug', 'Release'];
 
     // Define paths - always use PACKAGES_DIR for the cache, regardless of whether
     // we're building local or external packages
@@ -264,14 +282,14 @@ async function main(packageNames: string[], options: ActionOptions) {
      * Prebuilding steps:
      */
 
-    // 1. Clear cache if explicitly requested (--clean-cache only, not --clean-all)
+    // 1. Clear cache if explicitly requested (--clean-cache)
     if (options.cleanCache) {
       await Dependencies.cleanArtifactsAsync(artifactsPath);
     }
 
-    // Clean xcframeworks, generated folders, and build folders when --clean-all is used
-    // Note: --clean-all does NOT clear the dependency cache - use --clean-cache for that
-    if (performCleanAll) {
+    // Clean xcframeworks, generated folders, and build folders when --clean is used
+    // Note: --clean does NOT clear the dependency cache - use --clean-cache for that
+    if (options.clean) {
       for (const pkg of packages) {
         await Dependencies.cleanXCFrameworksFolderAsync(pkg);
         await Dependencies.cleanGeneratedFolderAsync(pkg);
@@ -316,26 +334,22 @@ async function main(packageNames: string[], options: ActionOptions) {
           artifactsPath,
           buildFlavor: currentBuildFlavor,
           localTarballs: {
-            reactNative: options.reactNativeTarballPath,
-            hermes: options.hermesTarballPath,
-            reactNativeDependencies: options.reactNativeDependenciesTarballPath,
+            reactNative: resolveLocalTarballPath(
+              options.localReactNativeTarball,
+              currentBuildFlavor
+            ),
+            hermes: resolveLocalTarballPath(options.localHermesTarball, currentBuildFlavor),
+            reactNativeDependencies: resolveLocalTarballPath(
+              options.localReactNativeDepsTarball,
+              currentBuildFlavor
+            ),
           },
-          // We'll skip downloading if any of the build/compose/generate options are false and --artifacts is not set to true
-          skipArtifacts: performAllSteps ? false : !options.artifacts,
+          skipArtifacts: options.skipArtifacts,
         });
-
-        // Optionally prune old cached versions to free up disk space
-        if (options.pruneCache) {
-          await Dependencies.pruneUnusedCacheAsync(artifactsPath, {
-            hermes: hermesVersion,
-            reactNativeVersion,
-            buildFlavor: currentBuildFlavor,
-          });
-        }
 
         for (const product of spmConfig.products) {
           // If a specific product name is requested, skip other products
-          if (options.productName && options.productName !== product.name) {
+          if (options.product && options.product !== product.name) {
             continue;
           }
 
@@ -350,12 +364,12 @@ async function main(packageNames: string[], options: ActionOptions) {
           };
           buildStatuses.push(status);
 
-          if (options.cleanGenerated || performCleanAll) {
+          if (options.clean) {
             // Clean generated source code folder!
             await SPMGenerator.cleanGeneratedSourceCodeFolderAsync(pkg, product);
           }
 
-          if (options.generate || performAllSteps) {
+          if (!options.skipGenerate) {
             try {
               // Ensure codegen is generated for packages that need it (e.g., Fabric components)
               if (Codegen.hasCodegen(pkg)) {
@@ -393,12 +407,12 @@ async function main(packageNames: string[], options: ActionOptions) {
             }
           }
 
-          if (options.cleanBuild || performCleanAll) {
+          if (options.clean) {
             // Clean dependencies, build and output paths
             await SPMBuild.cleanBuildFolderAsync(pkg, product, currentBuildFlavor);
           }
 
-          if (options.build || performAllSteps) {
+          if (!options.skipBuild) {
             try {
               // Compute hermes include paths for xcodebuild flags.
               // Hermes includes can't go in Package.swift because destroot/include/
@@ -431,12 +445,12 @@ async function main(packageNames: string[], options: ActionOptions) {
           }
 
           // Create xcframeworks from built frameworks
-          if (options.compose || performAllSteps) {
+          if (!options.skipCompose) {
             try {
               // Build signing options if identity is provided
-              const signing: SigningOptions | undefined = options.identity
+              const signing: SigningOptions | undefined = options.sign
                 ? {
-                    identity: options.identity,
+                    identity: options.sign,
                     useTimestamp: !options.noTimestamp,
                   }
                 : undefined;
@@ -464,8 +478,8 @@ async function main(packageNames: string[], options: ActionOptions) {
             }
           }
 
-          // Verify the built xcframeworks if requested
-          if (options.verify || performAllSteps) {
+          // Verify the built xcframeworks
+          if (!options.skipVerify) {
             try {
               // Verify all products' xcframeworks for this package (logging is handled internally)
               const verifyResults = await FrameworkVerifier.verifyXCFrameworkAsync(
@@ -649,60 +663,50 @@ export default (program: Command) => {
       'Generates `.xcframework` artifacts for iOS packages. If no package names are provided, discovers all packages with spm.config.json.'
     )
     .alias('prebuild')
+    .option('-v, --verbose', 'Enable verbose output (full build logs instead of spinners).', false)
     .option(
-      '--version <version>',
-      'Provides the current React Native version.',
-      'current react-native version for BareExpo'
+      '--react-native-version <version>',
+      'Provides the current React Native version. Auto-detected from bare-expo if not set.'
     )
     .option('--hermes-version <version>', 'Provides the current Hermes version.')
     .option(
-      '-f, --build-flavor <flavor>',
+      '-f, --flavor <flavor>',
       'Build flavor (Debug or Release). If not specified, builds both.'
     )
     .option(
-      '--react-native-tarball-path <path>',
-      'Optional local path to a React Native tarball to use instead of downloading.'
+      '--local-react-native-tarball <path>',
+      'Local path to a React Native tarball. Supports {flavor} placeholder for per-flavor paths.'
     )
     .option(
-      '--hermes-tarball-path <path>',
-      'Optional local path to a Hermes tarball to use instead of downloading.'
+      '--local-hermes-tarball <path>',
+      'Local path to a Hermes tarball. Supports {flavor} placeholder for per-flavor paths.'
     )
     .option(
-      '--react-native-dependencies-tarball-path <path>',
-      'Optional local path to a React Native Dependencies tarball to use instead of downloading.'
+      '--local-react-native-deps-tarball <path>',
+      'Local path to a React Native Dependencies tarball. Supports {flavor} placeholder for per-flavor paths.'
+    )
+    .option(
+      '--clean',
+      'Cleans all package outputs (xcframeworks, generated code, build folders) before building. Does not touch the dependency cache.',
+      false
     )
     .option(
       '--clean-cache',
       'Clears the entire dependency cache, forcing a fresh download of all artifacts.',
       false
     )
-    .option('--clean-build', 'Cleans the build folder before prebuilding packages.', false)
-    .option('-g, --generate', 'Only generate Package.swift files without building.', false)
-    .option('-a, --artifacts', 'Only download artifacts without building packages.', false)
-    .option('-b, --build', 'Build Package.swift.', false)
-    .option('-c, --compose', 'Compose xcframework from build artifacts.', false)
+    .option('--skip-generate', 'Skip the generate step.', false)
+    .option('--skip-artifacts', 'Skip downloading build artifacts.', false)
+    .option('--skip-build', 'Skip the build step.', false)
+    .option('--skip-compose', 'Skip composing xcframeworks from build artifacts.', false)
+    .option('--skip-verify', 'Skip verification of built xcframeworks.', false)
     .option(
       '-p, --platform <platform>',
       'Build platform (iOS, macOS, tvOS, watchOS). If not specified, builds for all platforms defined in the package.'
     )
     .option(
-      '-n, --product-name <name>',
+      '-n, --product <name>',
       'Specify a single product name to prebuild if a package contains multiple products.'
-    )
-    .option(
-      '--clean-generated',
-      'Cleans the generated source code folder before generating source code structure.',
-      false
-    )
-    .option(
-      '-v, --verify',
-      'Verify that thexcframeworks are correctly built and contains the expected architectures.',
-      false
-    )
-    .option(
-      '--clean-all',
-      'Cleans all package outputs (xcframeworks, generated code, build folders). Does not touch the dependency cache.',
-      false
     )
     .option(
       '--include-external',
@@ -710,12 +714,7 @@ export default (program: Command) => {
       false
     )
     .option(
-      '--prune-cache',
-      'Remove old cached dependencies, keeping only the current version. Use this to free up disk space.',
-      false
-    )
-    .option(
-      '-i, --identity <identity>',
+      '-s, --sign <identity>',
       'Code signing identity (certificate name) to sign the XCFrameworks. If not provided, frameworks are left unsigned.'
     )
     .option(

@@ -251,6 +251,13 @@ const buildXcodeBuildArgs = (
     buildType,
     'SKIP_INSTALL=NO',
     ...(containsSwiftTargets ? ['BUILD_LIBRARY_FOR_DISTRIBUTION=YES'] : []),
+    // Mirror Xcode's default project-level preprocessor definitions for each configuration.
+    // SPM targets do NOT inherit these automatically (unlike .xcodeproj targets), so we must
+    // set them explicitly. Without NDEBUG in Release, React Native headers expose non-inline
+    // symbols (e.g. Sealable) that the Release React.xcframework doesn't export.
+    ...(buildType === 'Release'
+      ? ['GCC_PREPROCESSOR_DEFINITIONS=$(inherited) NDEBUG=1 NS_BLOCK_ASSERTIONS=1']
+      : ['GCC_PREPROCESSOR_DEFINITIONS=$(inherited) DEBUG=1']),
     'DEBUG_INFORMATION_FORMAT=dwarf-with-dsym',
     `OTHER_CFLAGS=$(inherited) ${allCPrefixMaps}${extraIncludeFlags.length > 0 ? ' ' + extraIncludeFlags.join(' ') : ''}`,
     `OTHER_CPLUSPLUSFLAGS=$(inherited) ${allCPrefixMaps}${extraIncludeFlags.length > 0 ? ' ' + extraIncludeFlags.join(' ') : ''}`,
