@@ -1,3 +1,4 @@
+import { ExpoRunFormatter } from '@expo/xcpretty';
 import path from 'path';
 
 import {
@@ -5,6 +6,7 @@ import {
   getProcessOptions,
   getXcodeBuildArgsAsync,
   _assertXcodeBuildResults,
+  _extractXcodeBuildErrorLines,
   matchEstimatedBinaryPath,
   getAppBinaryPath,
 } from '../XcodeBuild';
@@ -186,6 +188,84 @@ describe(_assertXcodeBuildResults, () => {
     ).toThrow(
       'This operation can fail if the version of the OS on the device is newer than the version of Xcode that is running.'
     );
+  });
+
+  it(`surfaces the compile error before the raw log dump so it survives truncation`, () => {
+    let message = '';
+    try {
+      _assertXcodeBuildResults(
+        65,
+        fs.readFileSync(path.resolve(__dirname, './fixtures/unhandled-compile-error.log'), 'utf8'),
+        '',
+        { name: 'BareExpo' },
+        './output.log'
+      );
+    } catch (error: any) {
+      message = error.message;
+    }
+    expect(message).toContain(
+      "call to undeclared function 'RCTBundleURLProviderAllowPackagerServerAccess'"
+    );
+    // The extracted error is shown before the raw dependency-graph dump, so it
+    // survives CI log truncation. The full log is still there below for context.
+    expect(message.indexOf('call to undeclared function')).toBeLessThan(
+      message.indexOf('ComputeTargetDependencyGraph')
+    );
+  });
+
+  it(`surfaces an error line that only appeared on stderr`, () => {
+    let message = '';
+    try {
+      _assertXcodeBuildResults(
+        65,
+        'ComputeTargetDependencyGraph\nnote: Building targets in dependency order\n** BUILD FAILED **',
+        '/path/Script-ABC123.sh: error: config generation failed\n',
+        { name: 'BareExpo' },
+        './output.log'
+      );
+    } catch (error: any) {
+      message = error.message;
+    }
+    // stderr never passes through the formatter, so the extractor scans it too.
+    expect(message).toContain('error: config generation failed');
+  });
+
+  it(`extracts an error line the formatter left uncounted`, () => {
+    // `@expo/xcpretty`'s compile-error matching is stateful: a diagnostic only
+    // counts once the source line and caret that follow it arrive, so a bare
+    // `error:` line is left uncounted and the build summary reads "0 error(s)".
+    const formatter = ExpoRunFormatter.create('/', {
+      xcodeProject: { name: 'BareExpo' },
+      isDebug: false,
+    });
+    const line =
+      "/path/EXDevLauncherController.m:185:3: error: call to undeclared function 'RCTBundleURLProviderAllowPackagerServerAccess'";
+    for (const _ of formatter.pipe(line + '\n')) {
+      // drain
+    }
+    // The formatter surfaced no structured error (the gap this helper fills)...
+    expect(formatter.errors).toHaveLength(0);
+    // ...but the raw output still contains it, and the helper finds it.
+    expect(_extractXcodeBuildErrorLines(line)).toEqual([line]);
+  });
+});
+
+describe(_extractXcodeBuildErrorLines, () => {
+  it(`extracts and dedupes compiler error lines`, () => {
+    const output = [
+      'CompileC Foo.o Foo.m normal arm64',
+      '/path/Foo.m:1:2: error: use of undeclared identifier',
+      '/path/Foo.m:1:2: error: use of undeclared identifier',
+      '› 0 error(s), and 3 warning(s)',
+      "note: expanded from macro 'BAR'",
+    ].join('\n');
+    expect(_extractXcodeBuildErrorLines(output)).toEqual([
+      '/path/Foo.m:1:2: error: use of undeclared identifier',
+    ]);
+  });
+
+  it(`returns nothing when no error lines are present`, () => {
+    expect(_extractXcodeBuildErrorLines('** BUILD SUCCEEDED **\n› 0 error(s)')).toEqual([]);
   });
 });
 

@@ -452,10 +452,39 @@ export function _assertXcodeBuildResults(
   if (localizedError) {
     throwWithMessage(chalk.bold(localizedError) + '\n\n');
   }
+
+  // `@expo/xcpretty` can leave a real failure uncounted (its compile-error
+  // matching is stateful and anchored, and stderr never passes through it), so
+  // the build summary reads "0 error(s)" and in CI the full log below is
+  // truncated before the real error. Surface the matched `error:` lines first,
+  // then keep the full log for context.
+  const errorLines = _extractXcodeBuildErrorLines(results + '\n' + error);
+  if (errorLines.length) {
+    throwWithMessage(chalk.red(errorLines.join('\n')) + '\n\n' + results + '\n\n' + error);
+  }
+
   // Show all the log info because often times the error is coming from a shell script,
   // that invoked a node script, that started metro, which threw an error.
 
   throwWithMessage(results + '\n\n' + error);
+}
+
+/**
+ * Pull compiler, linker, and fatal error lines out of raw xcodebuild output.
+ * `@expo/xcpretty` can miss these, so its summary reads "0 error(s)" even when
+ * the build failed. clang, swiftc, and ld all emit errors as `... error: <msg>`.
+ */
+export function _extractXcodeBuildErrorLines(output: string): string[] {
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  for (const raw of output.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (/(?:^|\s)error:\s/.test(line) && !seen.has(line)) {
+      seen.add(line);
+      errors.push(line);
+    }
+  }
+  return errors;
 }
 
 function writeBuildLogs(projectRoot: string, buildOutput: string, errorOutput: string) {
