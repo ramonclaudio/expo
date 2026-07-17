@@ -295,14 +295,22 @@ Call Stack
     await page.getByText('console.error(string)').click();
 
     if (isWindows) {
-      // NOTE: On Windows the call stack additionally leads with internal
-      // `packages/expo` and `packages/@expo/log-box` frames, because in this monorepo
-      // those workspace packages resolve to real `packages/...` paths instead of
-      // `node_modules/...` (so the node_modules collapse patterns miss them). A real app
-      // installs them under node_modules and they collapse. We assert the component stack here.
       await expectOutput(
         output,
         `
+Web  ERROR  console-error-string
+
+Code: index.tsx
+   95 |         title="console.error(string)"
+   96 |         onPress={() => {
+>  97 |           console.error('console-error-string');
+      |                   ^
+   98 |         }}
+   99 |       />
+  100 |       <BigButton
+Call Stack
+  BigButton.props.onPress (apps\\router-e2e\\__e2e__\\06-errors\\app\\index.tsx:97:19)
+
 Code: index.tsx
   139 | function BigButton({ title, onPress }: { title: string; onPress: () => void }) {
   140 |   return (
@@ -347,6 +355,10 @@ Call Stack
         `.trim()
       );
     }
+
+    // `expectOutput` matches a substring, so trailing frames would pass unnoticed. Assert the
+    // expo internals stayed collapsed on workspace paths too (the frames apps never see).
+    expectNoInternalFrames(output);
   });
 
   test('prints console.warn strings without stack traces', async ({ page }) => {
@@ -364,6 +376,14 @@ async function expectOutput(output: { all: string }, expectedConsoleOutput: stri
   await expect
     .poll(() => normalizeConsoleOutput(output.all), { timeout: 30_000 })
     .toContain(normalizeConsoleOutput(expectedConsoleOutput));
+}
+
+function expectNoInternalFrames(output: { all: string }) {
+  const terminalOutput = normalizeConsoleOutput(output.all).replace(/\\/g, '/');
+  // A leading `(` distinguishes call-stack frames from bundler warnings that mention the same paths.
+  expect(terminalOutput).not.toContain('(packages/expo/build/');
+  expect(terminalOutput).not.toContain('(packages/expo-router/build/');
+  expect(terminalOutput).not.toContain('(packages/@expo/log-box/build/');
 }
 
 function expectNoStackTrace(output: { all: string }) {
